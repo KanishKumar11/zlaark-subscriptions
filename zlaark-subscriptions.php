@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Zlaark Subscriptions
- * Plugin URI: https://github.com/zlaark/zlaark-subscriptions
+ * Plugin URI: https://github.com/kanishkumar11/zlaark-subscriptions
  * Description: A comprehensive WooCommerce subscription plugin with paid trials and Razorpay integration. Functions independently without requiring WooCommerce Subscriptions.
  * Version: 1.0.0
  * Author: Kanish Kumar
