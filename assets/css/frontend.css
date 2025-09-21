@@ -1,0 +1,399 @@
+/**
+ * Frontend styles for Zlaark Subscriptions
+ */
+
+/* Subscription Details on Product Page */
+.subscription-details {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.subscription-details h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #495057;
+    font-size: 18px;
+}
+
+.subscription-trial,
+.subscription-recurring,
+.subscription-signup-fee,
+.subscription-length {
+    margin-bottom: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.subscription-length {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.subscription-details strong {
+    color: #212529;
+    margin-right: 8px;
+}
+
+/* Subscription Status Indicators */
+.subscription-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.subscription-status.status-active {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.subscription-status.status-trial {
+    background-color: #cce7ff;
+    color: #004085;
+    border: 1px solid #b3d7ff;
+}
+
+.subscription-status.status-paused {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.subscription-status.status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.subscription-status.status-expired {
+    background-color: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+.subscription-status.status-failed {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* My Account Subscriptions */
+.woocommerce-MyAccount-subscriptions .subscription-status {
+    font-size: 11px;
+    padding: 3px 8px;
+}
+
+.subscription-interval {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* Subscription Management */
+.zlaark-subscriptions-management {
+    margin: 20px 0;
+}
+
+.zlaark-subscriptions-management h3 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.subscription-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.subscription-item h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.subscription-item p {
+    margin-bottom: 8px;
+    color: #666;
+}
+
+.subscription-item strong {
+    color: #333;
+}
+
+/* Subscription Actions */
+.subscription-action {
+    display: inline-block;
+    padding: 6px 12px;
+    margin-right: 8px;
+    background: #007cba;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.subscription-action:hover {
+    background: #005a87;
+    color: #fff;
+    text-decoration: none;
+}
+
+.subscription-action.pause {
+    background: #ffb900;
+    color: #000;
+}
+
+.subscription-action.pause:hover {
+    background: #e6a600;
+}
+
+.subscription-action.cancel {
+    background: #d63638;
+}
+
+.subscription-action.cancel:hover {
+    background: #b32d2e;
+}
+
+.subscription-action.resume {
+    background: #46b450;
+}
+
+.subscription-action.resume:hover {
+    background: #3e9b42;
+}
+
+/* Subscription Details Page */
+.woocommerce-MyAccount-subscription-details {
+    margin: 20px 0;
+}
+
+.subscription-overview {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.subscription-info h3,
+.subscription-actions h3 {
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 2px solid #007cba;
+    padding-bottom: 8px;
+}
+
+.subscription-actions {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.subscription-action-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.subscription-action-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.subscription-action-item .description {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+}
+
+/* Payment History */
+.subscription-payment-history {
+    margin-top: 30px;
+}
+
+.subscription-payment-history h3 {
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 2px solid #007cba;
+    padding-bottom: 8px;
+}
+
+.payment-status {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.payment-status.status-completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.payment-status.status-failed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.payment-status.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Related Orders */
+.subscription-related-orders {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.subscription-related-orders h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+/* Content Restriction */
+.subscription-restriction {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+    color: #856404;
+}
+
+/* Notices */
+.subscription-notice {
+    padding: 15px 20px;
+    margin: 15px 0;
+    border-radius: 8px;
+    border-left: 4px solid #007cba;
+    background: #f0f6fc;
+}
+
+.subscription-notice.error {
+    border-left-color: #d63638;
+    background: #fcf0f1;
+    color: #721c24;
+}
+
+.subscription-notice.success {
+    border-left-color: #46b450;
+    background: #f0f6f0;
+    color: #155724;
+}
+
+/* Loading States */
+.subscription-loading {
+    position: relative;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.subscription-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #ccc;
+    border-top-color: #007cba;
+    border-radius: 50%;
+    animation: subscription-spin 1s linear infinite;
+}
+
+@keyframes subscription-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .subscription-overview {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .subscription-details {
+        padding: 15px;
+    }
+    
+    .subscription-action {
+        display: block;
+        margin-bottom: 8px;
+        margin-right: 0;
+        text-align: center;
+    }
+    
+    .woocommerce-orders-table .subscription-status {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .subscription-item {
+        padding: 15px;
+    }
+    
+    .subscription-details h3 {
+        font-size: 16px;
+    }
+    
+    .subscription-action-item .woocommerce-button {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+}
+
+/* WooCommerce Integration */
+.woocommerce .subscription-details {
+    margin: 20px 0;
+}
+
+.woocommerce .subscription-status {
+    vertical-align: middle;
+}
+
+.woocommerce-account .subscription-status {
+    white-space: nowrap;
+}
+
+/* Print Styles */
+@media print {
+    .subscription-action,
+    .subscription-actions {
+        display: none;
+    }
+    
+    .subscription-status {
+        border: 1px solid #000 !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+}

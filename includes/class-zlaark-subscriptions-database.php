@@ -1,0 +1,385 @@
+<?php
+/**
+ * Database operations for subscriptions
+ *
+ * @package ZlaarkSubscriptions
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+/**
+ * Database class
+ */
+class ZlaarkSubscriptionsDatabase {
+    
+    /**
+     * Instance
+     *
+     * @var ZlaarkSubscriptionsDatabase
+     */
+    private static $instance = null;
+    
+    /**
+     * Get instance
+     *
+     * @return ZlaarkSubscriptionsDatabase
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Constructor
+     */
+    private function __construct() {
+        // Check for database updates
+        add_action('admin_init', array($this, 'check_database_version'));
+    }
+    
+    /**
+     * Check database version
+     */
+    public function check_database_version() {
+        ZlaarkSubscriptionsInstall::check_version();
+    }
+    
+    /**
+     * Create a new subscription
+     *
+     * @param array $data Subscription data
+     * @return int|false Subscription ID or false on failure
+     */
+    public function create_subscription($data) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        $defaults = array(
+            'status' => 'active',
+            'trial_price' => 0.00,
+            'billing_interval' => 'monthly',
+            'current_cycle' => 0,
+            'failed_payment_count' => 0,
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql')
+        );
+        
+        $data = wp_parse_args($data, $defaults);
+        
+        $result = $wpdb->insert($table, $data);
+        
+        if ($result === false) {
+            return false;
+        }
+        
+        return $wpdb->insert_id;
+    }
+    
+    /**
+     * Update subscription
+     *
+     * @param int $subscription_id
+     * @param array $data
+     * @return bool
+     */
+    public function update_subscription($subscription_id, $data) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        $data['updated_at'] = current_time('mysql');
+        
+        $result = $wpdb->update(
+            $table,
+            $data,
+            array('id' => $subscription_id),
+            null,
+            array('%d')
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Get subscription by ID
+     *
+     * @param int $subscription_id
+     * @return object|null
+     */
+    public function get_subscription($subscription_id) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE id = %d",
+            $subscription_id
+        ));
+    }
+    
+    /**
+     * Get subscription by order ID
+     *
+     * @param int $order_id
+     * @return object|null
+     */
+    public function get_subscription_by_order($order_id) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE order_id = %d",
+            $order_id
+        ));
+    }
+    
+    /**
+     * Get subscription by Razorpay subscription ID
+     *
+     * @param string $razorpay_subscription_id
+     * @return object|null
+     */
+    public function get_subscription_by_razorpay_id($razorpay_subscription_id) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE razorpay_subscription_id = %s",
+            $razorpay_subscription_id
+        ));
+    }
+    
+    /**
+     * Get subscriptions by user ID
+     *
+     * @param int $user_id
+     * @param string $status Optional status filter
+     * @return array
+     */
+    public function get_user_subscriptions($user_id, $status = '') {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        $sql = "SELECT * FROM $table WHERE user_id = %d";
+        $params = array($user_id);
+        
+        if (!empty($status)) {
+            $sql .= " AND status = %s";
+            $params[] = $status;
+        }
+        
+        $sql .= " ORDER BY created_at DESC";
+        
+        return $wpdb->get_results($wpdb->prepare($sql, $params));
+    }
+    
+    /**
+     * Get subscriptions due for payment
+     *
+     * @return array
+     */
+    public function get_subscriptions_due_for_payment() {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table 
+             WHERE status = 'active' 
+             AND next_payment_date <= %s 
+             AND next_payment_date IS NOT NULL",
+            current_time('mysql')
+        ));
+    }
+    
+    /**
+     * Get subscriptions with expired trials
+     *
+     * @return array
+     */
+    public function get_expired_trials() {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table 
+             WHERE status = 'trial' 
+             AND trial_end_date <= %s 
+             AND trial_end_date IS NOT NULL",
+            current_time('mysql')
+        ));
+    }
+    
+    /**
+     * Record payment
+     *
+     * @param array $data Payment data
+     * @return int|false Payment ID or false on failure
+     */
+    public function record_payment($data) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_payments';
+        
+        $defaults = array(
+            'currency' => 'INR',
+            'payment_date' => current_time('mysql'),
+            'created_at' => current_time('mysql')
+        );
+        
+        $data = wp_parse_args($data, $defaults);
+        
+        $result = $wpdb->insert($table, $data);
+        
+        if ($result === false) {
+            return false;
+        }
+        
+        return $wpdb->insert_id;
+    }
+    
+    /**
+     * Get payment history for subscription
+     *
+     * @param int $subscription_id
+     * @return array
+     */
+    public function get_payment_history($subscription_id) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_payments';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE subscription_id = %d ORDER BY payment_date DESC",
+            $subscription_id
+        ));
+    }
+    
+    /**
+     * Log webhook event
+     *
+     * @param array $data Webhook data
+     * @return int|false Log ID or false on failure
+     */
+    public function log_webhook($data) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_webhook_logs';
+        
+        $defaults = array(
+            'status' => 'pending',
+            'created_at' => current_time('mysql')
+        );
+        
+        $data = wp_parse_args($data, $defaults);
+        
+        $result = $wpdb->insert($table, $data);
+        
+        if ($result === false) {
+            return false;
+        }
+        
+        return $wpdb->insert_id;
+    }
+    
+    /**
+     * Update webhook log
+     *
+     * @param int $log_id
+     * @param array $data
+     * @return bool
+     */
+    public function update_webhook_log($log_id, $data) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_webhook_logs';
+        
+        if (isset($data['status']) && $data['status'] === 'processed') {
+            $data['processed_at'] = current_time('mysql');
+        }
+        
+        $result = $wpdb->update(
+            $table,
+            $data,
+            array('id' => $log_id),
+            null,
+            array('%d')
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Get subscription statistics
+     *
+     * @return array
+     */
+    public function get_subscription_stats() {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        
+        $stats = array();
+        
+        // Total subscriptions
+        $stats['total'] = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+        
+        // Active subscriptions
+        $stats['active'] = $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'active'");
+        
+        // Trial subscriptions
+        $stats['trial'] = $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'trial'");
+        
+        // Cancelled subscriptions
+        $stats['cancelled'] = $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'cancelled'");
+        
+        // Expired subscriptions
+        $stats['expired'] = $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'expired'");
+        
+        // Monthly recurring revenue
+        $stats['mrr'] = $wpdb->get_var("
+            SELECT SUM(recurring_price) 
+            FROM $table 
+            WHERE status IN ('active', 'trial') 
+            AND billing_interval = 'monthly'
+        ");
+        
+        return $stats;
+    }
+    
+    /**
+     * Delete subscription and related data
+     *
+     * @param int $subscription_id
+     * @return bool
+     */
+    public function delete_subscription($subscription_id) {
+        global $wpdb;
+        
+        // Delete payments
+        $wpdb->delete(
+            $wpdb->prefix . 'zlaark_subscription_payments',
+            array('subscription_id' => $subscription_id),
+            array('%d')
+        );
+        
+        // Delete subscription
+        $result = $wpdb->delete(
+            $wpdb->prefix . 'zlaark_subscription_orders',
+            array('id' => $subscription_id),
+            array('%d')
+        );
+        
+        return $result !== false;
+    }
+}
