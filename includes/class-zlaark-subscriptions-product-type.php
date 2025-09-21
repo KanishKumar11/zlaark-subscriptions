@@ -45,35 +45,49 @@ class ZlaarkSubscriptionsProductType {
      * Initialize hooks
      */
     private function init_hooks() {
-        // Add subscription product type
-        add_filter('product_type_selector', array($this, 'add_subscription_product_type'));
-        
+        // Add subscription product type with multiple hook priorities
+        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 10);
+        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 20);
+
+        // Force registration on admin_init for admin pages
+        add_action('admin_init', array($this, 'force_product_type_registration'));
+
         // Add subscription product data tabs
         add_filter('woocommerce_product_data_tabs', array($this, 'add_subscription_product_data_tab'));
-        
+
         // Add subscription product data panels
         add_action('woocommerce_product_data_panels', array($this, 'add_subscription_product_data_panel'));
-        
+
         // Save subscription product data
         add_action('woocommerce_process_product_meta', array($this, 'save_subscription_product_data'));
-        
+
         // Modify product class for subscription products
         add_filter('woocommerce_product_class', array($this, 'get_subscription_product_class'), 10, 2);
-        
+
         // Hide/show fields based on product type
         add_action('admin_footer', array($this, 'subscription_product_type_js'));
-        
+
         // Validate subscription product data
         add_action('woocommerce_admin_process_product_object', array($this, 'validate_subscription_product_data'));
-        
+
         // Add subscription info to product display
         add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 25);
-        
+
         // Modify add to cart button for subscription products
         add_filter('woocommerce_product_add_to_cart_text', array($this, 'subscription_add_to_cart_text'), 10, 2);
         add_filter('woocommerce_product_add_to_cart_url', array($this, 'subscription_add_to_cart_url'), 10, 2);
     }
     
+    /**
+     * Force product type registration on admin pages
+     */
+    public function force_product_type_registration() {
+        if (is_admin() && class_exists('WooCommerce')) {
+            // Ensure our product type is registered
+            add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 999);
+        }
+    }
+
     /**
      * Add subscription product type to selector
      *
@@ -81,7 +95,9 @@ class ZlaarkSubscriptionsProductType {
      * @return array
      */
     public function add_subscription_product_type($types) {
-        $types['subscription'] = __('Subscription', 'zlaark-subscriptions');
+        if (!isset($types['subscription'])) {
+            $types['subscription'] = __('Subscription', 'zlaark-subscriptions');
+        }
         return $types;
     }
     

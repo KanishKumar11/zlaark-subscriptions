@@ -97,6 +97,9 @@ final class ZlaarkSubscriptions {
         
         // Hook into WooCommerce
         add_action('woocommerce_loaded', array($this, 'woocommerce_loaded'));
+
+        // Also try to initialize on plugins_loaded with higher priority
+        add_action('plugins_loaded', array($this, 'late_init'), 20);
     }
     
     /**
@@ -211,12 +214,26 @@ final class ZlaarkSubscriptions {
     }
     
     /**
+     * Late initialization to ensure WooCommerce is ready
+     */
+    public function late_init() {
+        // Only run if WooCommerce is active and not already initialized
+        if (class_exists('WooCommerce') && !did_action('zlaark_subscriptions_product_type_init')) {
+            // Initialize product type
+            ZlaarkSubscriptionsProductType::instance();
+
+            // Mark as initialized
+            do_action('zlaark_subscriptions_product_type_init');
+        }
+    }
+
+    /**
      * Called when WooCommerce is loaded
      */
     public function woocommerce_loaded() {
         // Initialize product type
         ZlaarkSubscriptionsProductType::instance();
-        
+
         // Add payment gateway
         add_filter('woocommerce_payment_gateways', array($this, 'add_payment_gateway'));
     }
