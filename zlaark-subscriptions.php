@@ -162,7 +162,6 @@ final class ZlaarkSubscriptions {
         if (is_admin()) {
             require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/admin/class-zlaark-subscriptions-admin.php';
             require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/admin/class-zlaark-subscriptions-admin-list.php';
-            require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/admin/class-zlaark-subscriptions-admin-edit.php';
         }
         
         // Frontend includes
