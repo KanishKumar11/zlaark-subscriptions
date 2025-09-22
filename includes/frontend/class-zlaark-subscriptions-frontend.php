@@ -252,6 +252,10 @@ class ZlaarkSubscriptionsFrontend {
         }
 
         // Get trial service and subscription options
+        if (!class_exists('ZlaarkSubscriptionsTrialService')) {
+            return; // Exit if trial service is not available
+        }
+
         $trial_service = new ZlaarkSubscriptionsTrialService();
         $user_id = get_current_user_id();
         $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);

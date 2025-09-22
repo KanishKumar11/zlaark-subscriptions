@@ -23,7 +23,7 @@ class ZlaarkSubscriptionsTrialService {
      * Constructor
      */
     public function __construct() {
-        $this->db = new ZlaarkSubscriptionsDatabase();
+        $this->db = ZlaarkSubscriptionsDatabase::instance();
         $this->init_hooks();
     }
     

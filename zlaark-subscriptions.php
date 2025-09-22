@@ -250,10 +250,7 @@ final class ZlaarkSubscriptions {
             ZlaarkSubscriptionsDebug::instance();
         }
 
-        // Initialize trial service
-        if (class_exists('ZlaarkSubscriptionsTrialService')) {
-            new ZlaarkSubscriptionsTrialService();
-        }
+        // Trial service will be initialized when WooCommerce is loaded
 
         // Initialize admin components
         if (is_admin() && class_exists('ZlaarkSubscriptionsAdmin')) {
@@ -313,6 +310,11 @@ final class ZlaarkSubscriptions {
     public function woocommerce_loaded() {
         // Initialize product type
         $this->init_product_type();
+
+        // Initialize trial service after WooCommerce is loaded
+        if (class_exists('ZlaarkSubscriptionsTrialService')) {
+            new ZlaarkSubscriptionsTrialService();
+        }
 
         // Add payment gateway
         add_filter('woocommerce_payment_gateways', array($this, 'add_payment_gateway'));

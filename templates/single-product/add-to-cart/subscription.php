@@ -21,9 +21,30 @@ echo wc_get_stock_html($product); // WPCS: XSS ok.
 if ($product->is_in_stock()) :
 
     // Get trial service and subscription options
-    $trial_service = new ZlaarkSubscriptionsTrialService();
-    $user_id = get_current_user_id();
-    $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);
+    if (class_exists('ZlaarkSubscriptionsTrialService')) {
+        $trial_service = new ZlaarkSubscriptionsTrialService();
+        $user_id = get_current_user_id();
+        $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);
+    } else {
+        // Fallback if trial service is not available
+        $regular_price = method_exists($product, 'get_recurring_price') ? $product->get_recurring_price() : $product->get_price();
+        $billing_interval = method_exists($product, 'get_billing_interval') ? $product->get_billing_interval() : __('recurring', 'zlaark-subscriptions');
+
+        $subscription_options = array(
+            'trial' => array(
+                'available' => false,
+                'label' => __('Trial Not Available', 'zlaark-subscriptions'),
+                'price' => 0,
+                'description' => __('Trial service is not available.', 'zlaark-subscriptions')
+            ),
+            'regular' => array(
+                'available' => true,
+                'label' => __('Start Subscription', 'zlaark-subscriptions'),
+                'price' => $regular_price,
+                'description' => sprintf(__('Start your subscription at %s %s', 'zlaark-subscriptions'), wc_price($regular_price), $billing_interval)
+            )
+        );
+    }
 
     ?>
 
@@ -123,4 +144,9 @@ if ($product->is_in_stock()) :
 
     <?php do_action('woocommerce_after_add_to_cart_form'); ?>
 
+<?php else: ?>
+    <!-- Fallback for out of stock products -->
+    <div class="subscription-out-of-stock">
+        <p><?php _e('This subscription is currently out of stock.', 'zlaark-subscriptions'); ?></p>
+    </div>
 <?php endif; ?>
