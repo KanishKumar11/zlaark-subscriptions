@@ -85,8 +85,22 @@ class ZlaarkSubscriptionsProductType {
         add_filter('woocommerce_is_purchasable', array($this, 'subscription_is_purchasable'), 10, 2);
         add_filter('woocommerce_product_supports', array($this, 'subscription_product_supports'), 10, 3);
 
-        // Handle template loading for subscription products
+        // Handle template loading for subscription products - multiple hooks
         add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
+        add_filter('woocommerce_locate_template', array($this, 'locate_subscription_template'), 10, 3);
+        add_action('woocommerce_single_product_summary', array($this, 'force_subscription_template_load'), 29);
+
+        // Force WooCommerce to load add-to-cart template for subscription products
+        add_action('woocommerce_single_product_summary', array($this, 'trigger_add_to_cart_template'), 28);
+
+        // Hook directly into WooCommerce's add-to-cart action
+        add_action('woocommerce_subscription_add_to_cart', array($this, 'subscription_add_to_cart_action'));
+
+        // Override WooCommerce's template loading for subscription products
+        add_action('woocommerce_single_product_summary', array($this, 'override_wc_add_to_cart'), 29);
+
+        // Direct hook at the standard WooCommerce add-to-cart priority
+        add_action('woocommerce_single_product_summary', array($this, 'direct_add_to_cart_injection'), 30);
 
         // Multiple fallback methods for add to cart button
         add_action('woocommerce_single_product_summary', array($this, 'ensure_subscription_add_to_cart'), 30);
@@ -699,6 +713,168 @@ class ZlaarkSubscriptionsProductType {
         }
 
         return $template;
+    }
+
+    /**
+     * Locate subscription template using WooCommerce's template system
+     *
+     * @param string $template
+     * @param string $template_name
+     * @param string $template_path
+     * @return string
+     */
+    public function locate_subscription_template($template, $template_name, $template_path) {
+        // Check if this is an add-to-cart template request for subscription products
+        if (strpos($template_name, 'single-product/add-to-cart/') === 0) {
+            global $product;
+
+            if ($product && $product->get_type() === 'subscription') {
+                $subscription_template = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/' . $template_name;
+
+                // Check if our custom template exists
+                if (file_exists($subscription_template)) {
+                    return $subscription_template;
+                }
+
+                // Fallback to subscription.php if the specific template doesn't exist
+                $fallback_template = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+                if (file_exists($fallback_template)) {
+                    return $fallback_template;
+                }
+            }
+        }
+
+        return $template;
+    }
+
+    /**
+     * Force subscription template to load if WooCommerce isn't loading it automatically
+     */
+    public function force_subscription_template_load() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Check if WooCommerce has already loaded an add-to-cart template
+        if (did_action('woocommerce_template_single_add_to_cart')) {
+            return;
+        }
+
+        // Force load our subscription template
+        if ($product->is_purchasable() && $product->is_in_stock()) {
+            $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+
+            if (file_exists($template_path)) {
+                // Trigger the action that WooCommerce would normally trigger
+                do_action('woocommerce_template_single_add_to_cart');
+
+                // Load our template
+                include $template_path;
+
+                return;
+            }
+        }
+    }
+
+    /**
+     * Trigger add-to-cart template loading for subscription products
+     */
+    public function trigger_add_to_cart_template() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Check if WooCommerce's add-to-cart template has already been triggered
+        if (did_action('woocommerce_template_single_add_to_cart')) {
+            return;
+        }
+
+        // Force WooCommerce to load the add-to-cart template
+        if ($product->is_purchasable() && $product->is_in_stock()) {
+            // This is the hook that WooCommerce normally uses to load add-to-cart templates
+            // We'll trigger it manually for subscription products
+            wc_get_template('single-product/add-to-cart/subscription.php', array(), '', ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/');
+
+            // Mark that the template has been loaded
+            do_action('woocommerce_template_single_add_to_cart');
+        }
+    }
+
+    /**
+     * Subscription-specific add to cart action
+     */
+    public function subscription_add_to_cart_action() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Load our subscription template
+        $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+        if (file_exists($template_path)) {
+            include $template_path;
+        }
+    }
+
+    /**
+     * Override WooCommerce's add-to-cart template loading for subscription products
+     */
+    public function override_wc_add_to_cart() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Check if any add-to-cart template has been loaded
+        if (did_action('woocommerce_template_single_add_to_cart')) {
+            return;
+        }
+
+        // Force trigger the subscription add-to-cart action
+        if ($product->is_purchasable() && $product->is_in_stock()) {
+            do_action('woocommerce_subscription_add_to_cart');
+
+            // Mark that we've loaded an add-to-cart template
+            do_action('woocommerce_template_single_add_to_cart');
+        }
+    }
+
+    /**
+     * Direct add-to-cart injection at standard WooCommerce priority
+     */
+    public function direct_add_to_cart_injection() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Only inject if no add-to-cart has been rendered yet
+        if (did_action('woocommerce_template_single_add_to_cart')) {
+            return;
+        }
+
+        // This is the exact same priority and location where WooCommerce normally shows add-to-cart
+        if ($product->is_purchasable() && $product->is_in_stock()) {
+            // Load our template directly
+            $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+
+            if (file_exists($template_path)) {
+                // Mark that we're loading the template
+                do_action('woocommerce_template_single_add_to_cart');
+
+                // Include the template
+                include $template_path;
+
+                return;
+            }
+        }
     }
 
     /**

@@ -53,6 +53,11 @@ class ZlaarkSubscriptionsFrontend {
 
         // Ensure add to cart button appears for subscription products
         add_action('woocommerce_single_product_summary', array($this, 'force_subscription_add_to_cart'), 31);
+
+        // Debug add to cart issues (only if WP_DEBUG is enabled)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            add_action('woocommerce_single_product_summary', array($this, 'debug_add_to_cart_status'), 32);
+        }
         
         // Modify add to cart behavior for subscription products
         add_filter('woocommerce_add_to_cart_validation', array($this, 'validate_subscription_add_to_cart'), 10, 3);
@@ -808,5 +813,95 @@ class ZlaarkSubscriptionsFrontend {
                 <?php
             }
         }
+    }
+
+    /**
+     * Debug add to cart status for subscription products
+     */
+    public function debug_add_to_cart_status() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Only show debug info if WP_DEBUG is enabled and user can manage options
+        if (!defined('WP_DEBUG') || !WP_DEBUG || !current_user_can('manage_options')) {
+            return;
+        }
+
+        $debug_info = array(
+            'product_id' => $product->get_id(),
+            'product_type' => $product->get_type(),
+            'product_class' => get_class($product),
+            'is_purchasable' => $product->is_purchasable(),
+            'is_in_stock' => $product->is_in_stock(),
+            'get_price' => $product->get_price(),
+            'stock_status' => method_exists($product, 'get_stock_status') ? $product->get_stock_status() : 'unknown',
+            'needs_shipping' => method_exists($product, 'needs_shipping') ? $product->needs_shipping() : 'unknown',
+            'template_loaded' => did_action('woocommerce_template_single_add_to_cart'),
+            'hooks_fired' => array(
+                'woocommerce_single_product_summary' => did_action('woocommerce_single_product_summary'),
+                'woocommerce_before_add_to_cart_form' => did_action('woocommerce_before_add_to_cart_form'),
+                'woocommerce_after_add_to_cart_form' => did_action('woocommerce_after_add_to_cart_form')
+            )
+        );
+
+        if (method_exists($product, 'has_trial')) {
+            $debug_info['has_trial'] = $product->has_trial();
+            if ($product->has_trial()) {
+                $debug_info['trial_price'] = $product->get_trial_price();
+                $debug_info['trial_duration'] = $product->get_trial_duration();
+                $debug_info['trial_period'] = $product->get_trial_period();
+            }
+        }
+
+        if (method_exists($product, 'get_recurring_price')) {
+            $debug_info['recurring_price'] = $product->get_recurring_price();
+            $debug_info['billing_interval'] = $product->get_billing_interval();
+        }
+
+        ?>
+        <div style="background: #000; color: #fff; padding: 15px; margin: 20px 0; border-radius: 4px; font-family: monospace; font-size: 12px;">
+            <h4 style="color: #fff; margin-top: 0;">🔧 Subscription Add-to-Cart Debug</h4>
+            <table style="color: #fff; width: 100%;">
+                <?php foreach ($debug_info as $key => $value): ?>
+                    <tr>
+                        <td style="padding: 2px 10px 2px 0; font-weight: bold;"><?php echo esc_html($key); ?>:</td>
+                        <td style="padding: 2px 0;">
+                            <?php
+                            if (is_array($value)) {
+                                echo '<pre>' . esc_html(print_r($value, true)) . '</pre>';
+                            } elseif (is_bool($value)) {
+                                echo $value ? '✅ true' : '❌ false';
+                            } else {
+                                echo esc_html($value);
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+
+            <div style="margin-top: 10px; padding: 10px; background: #333; border-radius: 4px;">
+                <strong>Template Check:</strong><br>
+                <?php
+                $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+                echo 'Template exists: ' . (file_exists($template_path) ? '✅ Yes' : '❌ No') . '<br>';
+                echo 'Template path: ' . esc_html($template_path) . '<br>';
+
+                // Check if WooCommerce tried to load any add-to-cart template
+                global $wp_filter;
+                $template_hooks = array('wc_get_template', 'woocommerce_locate_template');
+                foreach ($template_hooks as $hook) {
+                    $count = count($wp_filter[$hook]->callbacks ?? []);
+                    echo "Hook $hook: $count callbacks<br>";
+                }
+                ?>
+            </div>
+
+            <button onclick="this.parentElement.style.display='none'" style="float: right; background: #fff; color: #000; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px;">Hide Debug</button>
+        </div>
+        <?php
     }
 }

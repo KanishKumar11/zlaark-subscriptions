@@ -266,6 +266,26 @@ class WC_Product_Subscription extends WC_Product {
     public function is_in_stock() {
         return true; // Subscriptions don't manage stock
     }
+
+    /**
+     * Get stock status (always 'instock' for subscriptions)
+     *
+     * @return string
+     */
+    public function get_stock_status($context = 'view') {
+        return 'instock';
+    }
+
+    /**
+     * Check if product needs shipping (subscriptions are virtual)
+     *
+     * @return bool
+     */
+    public function needs_shipping() {
+        return false;
+    }
+
+
     
     /**
      * Get trial period in days
