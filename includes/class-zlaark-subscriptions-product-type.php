@@ -80,6 +80,12 @@ class ZlaarkSubscriptionsProductType {
         // Ensure subscription products show add to cart button
         add_filter('woocommerce_is_purchasable', array($this, 'subscription_is_purchasable'), 10, 2);
         add_filter('woocommerce_product_supports', array($this, 'subscription_product_supports'), 10, 3);
+
+        // Handle template loading for subscription products
+        add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
+
+        // Fallback: Force add to cart button display for subscription products
+        add_action('woocommerce_single_product_summary', array($this, 'ensure_subscription_add_to_cart'), 30);
     }
     
     /**
@@ -516,5 +522,65 @@ class ZlaarkSubscriptionsProductType {
             }
         }
         return $supports;
+    }
+
+    /**
+     * Load custom template for subscription add to cart
+     *
+     * @param string $template
+     * @param string $template_name
+     * @param array $args
+     * @param string $template_path
+     * @param string $default_path
+     * @return string
+     */
+    public function subscription_add_to_cart_template($template, $template_name, $args, $template_path, $default_path) {
+        // Only modify add-to-cart templates for subscription products
+        if (strpos($template_name, 'single-product/add-to-cart/') === 0) {
+            global $product;
+
+            if ($product && $product->get_type() === 'subscription') {
+                $subscription_template = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+
+                if (file_exists($subscription_template)) {
+                    return $subscription_template;
+                }
+            }
+        }
+
+        return $template;
+    }
+
+    /**
+     * Ensure subscription products have add to cart button (fallback)
+     */
+    public function ensure_subscription_add_to_cart() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Check if add to cart button was already rendered
+        if (did_action('woocommerce_single_product_summary') && !did_action('woocommerce_template_single_add_to_cart')) {
+            // Force render the add to cart button
+            if ($product->is_purchasable() && $product->is_in_stock()) {
+                ?>
+                <div class="subscription-add-to-cart-fallback">
+                    <form class="cart" action="<?php echo esc_url($product->get_permalink()); ?>" method="post" enctype='multipart/form-data'>
+                        <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="single_add_to_cart_button button alt subscription-add-to-cart-button">
+                            <?php
+                            if (method_exists($product, 'has_trial') && $product->has_trial()) {
+                                echo esc_html__('Start Trial', 'zlaark-subscriptions');
+                            } else {
+                                echo esc_html__('Start Subscription', 'zlaark-subscriptions');
+                            }
+                            ?>
+                        </button>
+                    </form>
+                </div>
+                <?php
+            }
+        }
     }
 }

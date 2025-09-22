@@ -218,6 +218,54 @@ class WC_Product_Subscription extends WC_Product {
     public function has_trial() {
         return $this->get_trial_duration() > 0;
     }
+
+    /**
+     * Get the product price for WooCommerce
+     *
+     * @param string $context
+     * @return string
+     */
+    public function get_price($context = 'view') {
+        // For subscriptions, the initial price is what matters for purchasability
+        if ($this->has_trial()) {
+            return $this->get_trial_price();
+        } else {
+            return $this->get_recurring_price();
+        }
+    }
+
+    /**
+     * Check if the subscription product is purchasable
+     *
+     * @return bool
+     */
+    public function is_purchasable() {
+        $purchasable = true;
+
+        // Must have a recurring price
+        if ($this->get_recurring_price() <= 0) {
+            $purchasable = false;
+        }
+
+        // Must be published
+        if ($this->get_status() !== 'publish') {
+            $purchasable = false;
+        }
+
+        // Subscriptions are always "in stock" since they don't manage inventory
+        // No need to check is_in_stock() for subscriptions
+
+        return apply_filters('woocommerce_is_purchasable', $purchasable, $this);
+    }
+
+    /**
+     * Check if subscription is in stock (always true for subscriptions)
+     *
+     * @return bool
+     */
+    public function is_in_stock() {
+        return true; // Subscriptions don't manage stock
+    }
     
     /**
      * Get trial period in days

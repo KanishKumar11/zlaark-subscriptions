@@ -71,6 +71,55 @@
     border-color: #005a87;
 }
 
+/* Subscription Add to Cart Specific Styling */
+.subscription-add-to-cart {
+    margin-top: 20px;
+}
+
+.subscription-trial-summary,
+.subscription-recurring-summary {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.subscription-trial-summary {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+.subscription-trial-summary .trial-price {
+    margin: 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: #155724;
+}
+
+.subscription-trial-summary .free-trial {
+    color: #28a745;
+}
+
+.subscription-recurring-summary {
+    background: #cce7f0;
+    border: 1px solid #b8daff;
+}
+
+.subscription-recurring-summary .recurring-price {
+    margin: 0;
+    font-size: 14px;
+    color: #004085;
+}
+
+.subscription-add-to-cart-button {
+    width: 100%;
+    padding: 15px 30px;
+    font-size: 18px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
 .subscription-details strong {
     color: #212529;
     margin-right: 8px;

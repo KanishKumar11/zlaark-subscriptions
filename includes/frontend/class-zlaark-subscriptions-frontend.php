@@ -50,6 +50,9 @@ class ZlaarkSubscriptionsFrontend {
         
         // Add subscription info to single product page (higher priority than product type class)
         add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 26);
+
+        // Ensure add to cart button appears for subscription products
+        add_action('woocommerce_single_product_summary', array($this, 'force_subscription_add_to_cart'), 31);
         
         // Modify add to cart behavior for subscription products
         add_filter('woocommerce_add_to_cart_validation', array($this, 'validate_subscription_add_to_cart'), 10, 3);
@@ -701,5 +704,109 @@ class ZlaarkSubscriptionsFrontend {
             </tr>
         </table>
         <?php
+    }
+
+    /**
+     * Force add to cart button for subscription products if not already displayed
+     */
+    public function force_subscription_add_to_cart() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Only add if the product is purchasable and no add to cart button was rendered
+        if ($product->is_purchasable() && $product->is_in_stock()) {
+            // Check if WooCommerce's add to cart was already called
+            if (!did_action('woocommerce_template_single_add_to_cart')) {
+                ?>
+                <div class="subscription-add-to-cart-forced">
+                    <form class="cart" action="<?php echo esc_url($product->get_permalink()); ?>" method="post" enctype='multipart/form-data'>
+                        <?php wp_nonce_field('woocommerce-add-to-cart', 'woocommerce-add-to-cart-nonce'); ?>
+
+                        <div class="subscription-pricing-summary">
+                            <?php if (method_exists($product, 'has_trial') && $product->has_trial()): ?>
+                                <div class="trial-info">
+                                    <?php
+                                    $trial_price = $product->get_trial_price();
+                                    $trial_duration = $product->get_trial_duration();
+                                    $trial_period = $product->get_trial_period();
+
+                                    if ($trial_price > 0) {
+                                        printf(
+                                            __('Start with %s for %d %s', 'zlaark-subscriptions'),
+                                            wc_price($trial_price),
+                                            $trial_duration,
+                                            $trial_period
+                                        );
+                                    } else {
+                                        printf(
+                                            __('FREE trial for %d %s', 'zlaark-subscriptions'),
+                                            $trial_duration,
+                                            $trial_period
+                                        );
+                                    }
+                                    ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="recurring-info">
+                                <?php
+                                printf(
+                                    __('Then %s %s', 'zlaark-subscriptions'),
+                                    wc_price($product->get_recurring_price()),
+                                    $product->get_billing_interval()
+                                );
+                                ?>
+                            </div>
+                        </div>
+
+                        <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="single_add_to_cart_button button alt subscription-add-to-cart-button">
+                            <?php
+                            if (method_exists($product, 'has_trial') && $product->has_trial()) {
+                                echo esc_html__('Start Trial', 'zlaark-subscriptions');
+                            } else {
+                                echo esc_html__('Start Subscription', 'zlaark-subscriptions');
+                            }
+                            ?>
+                        </button>
+                    </form>
+                </div>
+
+                <style>
+                .subscription-add-to-cart-forced {
+                    margin: 20px 0;
+                    padding: 20px;
+                    background: #f9f9f9;
+                    border: 2px solid #007cba;
+                    border-radius: 8px;
+                }
+
+                .subscription-pricing-summary {
+                    margin-bottom: 15px;
+                    text-align: center;
+                }
+
+                .trial-info, .recurring-info {
+                    padding: 8px;
+                    margin: 5px 0;
+                    border-radius: 4px;
+                }
+
+                .trial-info {
+                    background: #d4edda;
+                    color: #155724;
+                    font-weight: bold;
+                }
+
+                .recurring-info {
+                    background: #cce7f0;
+                    color: #004085;
+                }
+                </style>
+                <?php
+            }
+        }
     }
 }
