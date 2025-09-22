@@ -159,6 +159,7 @@ final class ZlaarkSubscriptions {
             'includes/class-zlaark-subscriptions-database.php',
             'includes/class-wc-product-subscription.php',
             'includes/class-zlaark-subscriptions-product-type.php',
+            'includes/class-zlaark-subscriptions-trial-service.php',
             'includes/class-zlaark-subscriptions-manager.php',
             'includes/class-zlaark-subscriptions-cron.php',
             'includes/class-zlaark-subscriptions-emails.php',
@@ -247,6 +248,11 @@ final class ZlaarkSubscriptions {
         // Initialize debug system
         if (class_exists('ZlaarkSubscriptionsDebug')) {
             ZlaarkSubscriptionsDebug::instance();
+        }
+
+        // Initialize trial service
+        if (class_exists('ZlaarkSubscriptionsTrialService')) {
+            new ZlaarkSubscriptionsTrialService();
         }
 
         // Initialize admin components

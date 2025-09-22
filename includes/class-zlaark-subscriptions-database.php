@@ -382,4 +382,114 @@ class ZlaarkSubscriptionsDatabase {
         
         return $result !== false;
     }
+
+    /**
+     * Check if user has used trial for a product
+     *
+     * @param int $user_id
+     * @param int $product_id
+     * @return bool
+     */
+    public function has_user_used_trial($user_id, $product_id) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'zlaark_subscription_trial_history';
+
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table WHERE user_id = %d AND product_id = %d",
+            $user_id,
+            $product_id
+        ));
+
+        return $count > 0;
+    }
+
+    /**
+     * Record trial usage for user and product
+     *
+     * @param int $user_id
+     * @param int $product_id
+     * @param int $subscription_id
+     * @return int|false Trial history ID or false on failure
+     */
+    public function record_trial_usage($user_id, $product_id, $subscription_id = null) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'zlaark_subscription_trial_history';
+
+        $data = array(
+            'user_id' => $user_id,
+            'product_id' => $product_id,
+            'trial_started_at' => current_time('mysql'),
+            'trial_status' => 'active',
+            'subscription_id' => $subscription_id,
+            'created_at' => current_time('mysql')
+        );
+
+        $result = $wpdb->insert($table, $data);
+
+        return $result ? $wpdb->insert_id : false;
+    }
+
+    /**
+     * Update trial history status
+     *
+     * @param int $user_id
+     * @param int $product_id
+     * @param string $status
+     * @return bool
+     */
+    public function update_trial_status($user_id, $product_id, $status) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'zlaark_subscription_trial_history';
+
+        $result = $wpdb->update(
+            $table,
+            array(
+                'trial_status' => $status,
+                'trial_ended_at' => current_time('mysql')
+            ),
+            array(
+                'user_id' => $user_id,
+                'product_id' => $product_id
+            )
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Get trial history for user
+     *
+     * @param int $user_id
+     * @return array
+     */
+    public function get_user_trial_history($user_id) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'zlaark_subscription_trial_history';
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE user_id = %d ORDER BY created_at DESC",
+            $user_id
+        ));
+    }
+
+    /**
+     * Get trial history for product
+     *
+     * @param int $product_id
+     * @return array
+     */
+    public function get_product_trial_history($product_id) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'zlaark_subscription_trial_history';
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE product_id = %d ORDER BY created_at DESC",
+            $product_id
+        ));
+    }
 }

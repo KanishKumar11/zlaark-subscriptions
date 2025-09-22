@@ -51,8 +51,11 @@ class ZlaarkSubscriptionsFrontend {
         // Add subscription info to single product page (higher priority than product type class)
         add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 26);
 
-        // Add prominent trial information display
-        add_action('woocommerce_single_product_summary', array($this, 'display_trial_highlight'), 22);
+        // Add prominent trial information display after title
+        add_action('woocommerce_single_product_summary', array($this, 'display_trial_highlight'), 7);
+
+        // Add comprehensive trial information after price
+        add_action('woocommerce_single_product_summary', array($this, 'display_comprehensive_trial_info'), 12);
 
         // Ensure add to cart button appears for subscription products
         add_action('woocommerce_single_product_summary', array($this, 'force_subscription_add_to_cart'), 31);
@@ -233,6 +236,215 @@ class ZlaarkSubscriptionsFrontend {
             border-top: 1px solid rgba(255,255,255,0.3);
             padding-top: 10px;
             margin-top: 10px;
+        }
+        </style>
+        <?php
+    }
+
+    /**
+     * Display comprehensive trial information after product price
+     */
+    public function display_comprehensive_trial_info() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Get trial service and subscription options
+        $trial_service = new ZlaarkSubscriptionsTrialService();
+        $user_id = get_current_user_id();
+        $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);
+
+        ?>
+        <div class="subscription-trial-info-section">
+            <?php if (method_exists($product, 'has_trial') && $product->has_trial()): ?>
+                <div class="trial-availability-status">
+                    <?php if ($subscription_options['trial']['available']): ?>
+                        <div class="trial-available-badge">
+                            <span class="badge-icon">✅</span>
+                            <span class="badge-text"><?php _e('Trial Available', 'zlaark-subscriptions'); ?></span>
+                        </div>
+                        <div class="trial-details">
+                            <p class="trial-offer-text"><?php echo esc_html($subscription_options['trial']['description']); ?></p>
+                        </div>
+                    <?php else: ?>
+                        <div class="trial-unavailable-badge">
+                            <span class="badge-icon">❌</span>
+                            <span class="badge-text"><?php _e('Trial Not Available', 'zlaark-subscriptions'); ?></span>
+                        </div>
+                        <div class="trial-reason">
+                            <p class="trial-reason-text"><?php echo esc_html($subscription_options['trial']['description']); ?></p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="subscription-pricing-summary">
+                    <div class="pricing-comparison">
+                        <?php if ($subscription_options['trial']['available']): ?>
+                            <div class="pricing-option trial-pricing">
+                                <div class="pricing-header">
+                                    <h4><?php _e('Trial Option', 'zlaark-subscriptions'); ?></h4>
+                                    <?php if ($subscription_options['trial']['price'] > 0): ?>
+                                        <span class="price"><?php echo wc_price($subscription_options['trial']['price']); ?></span>
+                                    <?php else: ?>
+                                        <span class="price free"><?php _e('FREE', 'zlaark-subscriptions'); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="pricing-details">
+                                    <p><?php echo esc_html($subscription_options['trial']['description']); ?></p>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="pricing-option regular-pricing">
+                            <div class="pricing-header">
+                                <h4><?php _e('Full Subscription', 'zlaark-subscriptions'); ?></h4>
+                                <span class="price"><?php echo wc_price($subscription_options['regular']['price']); ?></span>
+                            </div>
+                            <div class="pricing-details">
+                                <p><?php echo esc_html($subscription_options['regular']['description']); ?></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <?php else: ?>
+                <!-- No trial available for this product -->
+                <div class="no-trial-info">
+                    <div class="no-trial-badge">
+                        <span class="badge-icon">ℹ️</span>
+                        <span class="badge-text"><?php _e('No Trial Period', 'zlaark-subscriptions'); ?></span>
+                    </div>
+                    <div class="subscription-only-details">
+                        <p><?php printf(__('This subscription starts immediately at %s %s.', 'zlaark-subscriptions'), wc_price($product->get_recurring_price()), $product->get_billing_interval()); ?></p>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <style>
+        .subscription-trial-info-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .trial-availability-status {
+            margin-bottom: 20px;
+        }
+
+        .trial-available-badge,
+        .trial-unavailable-badge,
+        .no-trial-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .trial-available-badge {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .trial-unavailable-badge {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .no-trial-badge {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .trial-details,
+        .trial-reason,
+        .subscription-only-details {
+            margin-top: 10px;
+        }
+
+        .trial-offer-text,
+        .trial-reason-text {
+            margin: 0;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .subscription-pricing-summary {
+            border-top: 1px solid #dee2e6;
+            padding-top: 20px;
+        }
+
+        .pricing-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .pricing-comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pricing-option {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .trial-pricing {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .regular-pricing {
+            border-color: #007cba;
+            background: linear-gradient(135deg, #cce7f0 0%, #b3d9e8 100%);
+        }
+
+        .pricing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .pricing-header h4 {
+            margin: 0;
+            font-size: 16px;
+            color: #495057;
+        }
+
+        .pricing-header .price {
+            font-weight: bold;
+            font-size: 18px;
+            color: #007cba;
+        }
+
+        .pricing-header .price.free {
+            color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+
+        .pricing-details p {
+            margin: 0;
+            font-size: 13px;
+            color: #6c757d;
+            line-height: 1.4;
         }
         </style>
         <?php

@@ -124,6 +124,28 @@ class ZlaarkSubscriptionsInstall {
         ) $charset_collate;";
         
         dbDelta($webhook_sql);
+
+        // Trial history table
+        $trial_history_table = $wpdb->prefix . 'zlaark_subscription_trial_history';
+
+        $trial_history_sql = "CREATE TABLE $trial_history_table (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL,
+            product_id bigint(20) unsigned NOT NULL,
+            trial_started_at datetime NOT NULL,
+            trial_ended_at datetime DEFAULT NULL,
+            trial_status varchar(20) NOT NULL DEFAULT 'active',
+            subscription_id bigint(20) unsigned DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY user_product (user_id, product_id),
+            KEY user_id (user_id),
+            KEY product_id (product_id),
+            KEY trial_status (trial_status),
+            KEY trial_started_at (trial_started_at)
+        ) $charset_collate;";
+
+        dbDelta($trial_history_sql);
     }
     
     /**

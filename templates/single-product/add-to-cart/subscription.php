@@ -1,11 +1,11 @@
 <?php
 /**
- * Subscription add to cart template
+ * Subscription add to cart template with dual button system
  *
  * This template can be overridden by copying it to yourtheme/woocommerce/single-product/add-to-cart/subscription.php.
  *
  * @package ZlaarkSubscriptions
- * @version 1.0.1
+ * @version 1.0.4
  */
 
 defined('ABSPATH') || exit;
@@ -18,97 +18,108 @@ if (!$product->is_purchasable()) {
 
 echo wc_get_stock_html($product); // WPCS: XSS ok.
 
-if ($product->is_in_stock()) : ?>
+if ($product->is_in_stock()) :
+
+    // Get trial service and subscription options
+    $trial_service = new ZlaarkSubscriptionsTrialService();
+    $user_id = get_current_user_id();
+    $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);
+
+    ?>
 
     <?php do_action('woocommerce_before_add_to_cart_form'); ?>
 
-    <form class="cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype='multipart/form-data'>
-        <?php do_action('woocommerce_before_add_to_cart_button'); ?>
+    <!-- Enhanced Trial Information Display -->
+    <div class="subscription-options-overview">
+        <h3 class="subscription-options-title"><?php _e('Choose Your Subscription Option', 'zlaark-subscriptions'); ?></h3>
 
-        <div class="subscription-add-to-cart">
-            <?php
-            /**
-             * Display comprehensive subscription pricing summary
-             */
-            $has_trial = method_exists($product, 'has_trial') && $product->has_trial();
-            $trial_price = $has_trial ? $product->get_trial_price() : 0;
-            $trial_duration = $has_trial ? $product->get_trial_duration() : 0;
-            $trial_period = $has_trial ? $product->get_trial_period() : '';
-            $recurring_price = method_exists($product, 'get_recurring_price') ? $product->get_recurring_price() : 0;
-            $billing_interval = method_exists($product, 'get_billing_interval') ? $product->get_billing_interval() : '';
-            $signup_fee = method_exists($product, 'get_signup_fee') ? $product->get_signup_fee() : 0;
-            ?>
-
-            <div class="subscription-pricing-breakdown">
-                <?php if ($has_trial): ?>
-                    <div class="subscription-trial-highlight">
-                        <div class="trial-badge">
-                            <?php if ($trial_price > 0): ?>
-                                <span class="trial-price-badge"><?php echo wc_price($trial_price); ?></span>
-                                <span class="trial-duration"><?php printf(__('for %d %s', 'zlaark-subscriptions'), $trial_duration, $trial_period); ?></span>
-                            <?php else: ?>
-                                <span class="trial-free-badge"><?php _e('FREE', 'zlaark-subscriptions'); ?></span>
-                                <span class="trial-duration"><?php printf(__('for %d %s', 'zlaark-subscriptions'), $trial_duration, $trial_period); ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="trial-description">
-                            <?php if ($trial_price > 0): ?>
-                                <p class="trial-info"><?php printf(__('Start your subscription with a special trial price of %s for %d %s.', 'zlaark-subscriptions'), wc_price($trial_price), $trial_duration, $trial_period); ?></p>
-                            <?php else: ?>
-                                <p class="trial-info"><?php printf(__('Start with a completely FREE trial for %d %s - no payment required!', 'zlaark-subscriptions'), $trial_duration, $trial_period); ?></p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <div class="subscription-after-trial">
-                        <div class="after-trial-label"><?php _e('After your trial:', 'zlaark-subscriptions'); ?></div>
-                        <div class="recurring-price-display">
-                            <span class="recurring-amount"><?php echo wc_price($recurring_price); ?></span>
-                            <span class="recurring-interval"><?php echo $billing_interval; ?></span>
-                        </div>
-                        <?php if ($signup_fee > 0): ?>
-                            <div class="signup-fee-info">
-                                <small><?php printf(__('Plus one-time setup fee: %s', 'zlaark-subscriptions'), wc_price($signup_fee)); ?></small>
-                            </div>
+        <div class="subscription-options-grid">
+            <?php if ($subscription_options['trial']['available']): ?>
+                <!-- Trial Option -->
+                <div class="subscription-option trial-option">
+                    <div class="option-header">
+                        <h4 class="option-title"><?php _e('Trial Option', 'zlaark-subscriptions'); ?></h4>
+                        <?php if ($subscription_options['trial']['price'] > 0): ?>
+                            <div class="option-price"><?php echo wc_price($subscription_options['trial']['price']); ?></div>
+                        <?php else: ?>
+                            <div class="option-price free"><?php _e('FREE', 'zlaark-subscriptions'); ?></div>
                         <?php endif; ?>
                     </div>
-
-                <?php else: ?>
-                    <!-- No trial - show regular subscription pricing -->
-                    <div class="subscription-regular-pricing">
-                        <div class="subscription-price-display">
-                            <span class="subscription-amount"><?php echo wc_price($recurring_price); ?></span>
-                            <span class="subscription-interval"><?php echo $billing_interval; ?></span>
-                        </div>
-                        <?php if ($signup_fee > 0): ?>
-                            <div class="signup-fee-info">
-                                <small><?php printf(__('Plus one-time setup fee: %s', 'zlaark-subscriptions'), wc_price($signup_fee)); ?></small>
-                            </div>
-                        <?php endif; ?>
-                        <div class="subscription-description">
-                            <p><?php printf(__('You will be charged %s %s starting immediately.', 'zlaark-subscriptions'), wc_price($recurring_price), $billing_interval); ?></p>
-                        </div>
+                    <div class="option-description">
+                        <p><?php echo esc_html($subscription_options['trial']['description']); ?></p>
                     </div>
-                <?php endif; ?>
+                    <div class="option-benefits">
+                        <ul>
+                            <li>✓ <?php _e('Try before you commit', 'zlaark-subscriptions'); ?></li>
+                            <li>✓ <?php _e('Cancel anytime during trial', 'zlaark-subscriptions'); ?></li>
+                            <li>✓ <?php _e('Automatic conversion to full subscription', 'zlaark-subscriptions'); ?></li>
+                        </ul>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Regular Subscription Option -->
+            <div class="subscription-option regular-option">
+                <div class="option-header">
+                    <h4 class="option-title"><?php _e('Full Subscription', 'zlaark-subscriptions'); ?></h4>
+                    <div class="option-price"><?php echo wc_price($subscription_options['regular']['price']); ?></div>
+                </div>
+                <div class="option-description">
+                    <p><?php echo esc_html($subscription_options['regular']['description']); ?></p>
+                </div>
+                <div class="option-benefits">
+                    <ul>
+                        <li>✓ <?php _e('Immediate full access', 'zlaark-subscriptions'); ?></li>
+                        <li>✓ <?php _e('No trial limitations', 'zlaark-subscriptions'); ?></li>
+                        <li>✓ <?php _e('Best value for committed users', 'zlaark-subscriptions'); ?></li>
+                    </ul>
+                </div>
             </div>
+        </div>
+    </div>
 
-            <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="single_add_to_cart_button button alt subscription-add-to-cart-button">
-                <?php
-                if ($has_trial) {
-                    if ($trial_price > 0) {
-                        printf(__('Start Trial - %s', 'zlaark-subscriptions'), wc_price($trial_price));
-                    } else {
-                        echo esc_html__('Start FREE Trial', 'zlaark-subscriptions');
-                    }
-                } else {
-                    printf(__('Subscribe - %s %s', 'zlaark-subscriptions'), wc_price($recurring_price), $billing_interval);
-                }
-                ?>
+    <!-- Dual Button System -->
+    <div class="subscription-purchase-options">
+        <?php if ($subscription_options['trial']['available']): ?>
+            <!-- Trial Button -->
+            <form class="cart trial-cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype='multipart/form-data'>
+                <?php do_action('woocommerce_before_add_to_cart_button'); ?>
+
+                <input type="hidden" name="subscription_type" value="trial" />
+                <input type="hidden" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" />
+
+                <button type="submit" class="single_add_to_cart_button button alt trial-button">
+                    <span class="button-icon">🎯</span>
+                    <span class="button-text"><?php echo esc_html($subscription_options['trial']['label']); ?></span>
+                </button>
+
+                <?php do_action('woocommerce_after_add_to_cart_button'); ?>
+            </form>
+        <?php else: ?>
+            <!-- Trial Not Available Message -->
+            <div class="trial-unavailable">
+                <div class="unavailable-message">
+                    <span class="unavailable-icon">🚫</span>
+                    <span class="unavailable-text"><?php echo esc_html($subscription_options['trial']['description']); ?></span>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Regular Subscription Button -->
+        <form class="cart regular-cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype='multipart/form-data'>
+            <?php do_action('woocommerce_before_add_to_cart_button'); ?>
+
+            <input type="hidden" name="subscription_type" value="regular" />
+            <input type="hidden" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" />
+
+            <button type="submit" class="single_add_to_cart_button button alt regular-button">
+                <span class="button-icon">🚀</span>
+                <span class="button-text"><?php echo esc_html($subscription_options['regular']['label']); ?></span>
             </button>
 
             <?php do_action('woocommerce_after_add_to_cart_button'); ?>
-        </div>
-    </form>
+        </form>
+    </div>
 
     <?php do_action('woocommerce_after_add_to_cart_form'); ?>
 
