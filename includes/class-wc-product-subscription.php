@@ -363,8 +363,12 @@ class WC_Product_Subscription extends WC_Product {
                 $price_html .= ', ';
             }
         }
-        
-        $price_html .= __('then ', 'zlaark-subscriptions');
+
+        // Only show "then" if there's a trial
+        if ($this->has_trial()) {
+            $price_html .= __('then ', 'zlaark-subscriptions');
+        }
+
         $price_html .= wc_price($this->get_recurring_price());
         $price_html .= ' ' . $this->get_billing_interval();
         

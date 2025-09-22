@@ -136,6 +136,11 @@ class ZlaarkSubscriptionsFrontend {
             return;
         }
 
+        // Check if trial service is available
+        if (!class_exists('ZlaarkSubscriptionsTrialService')) {
+            return;
+        }
+
         $trial_price = $product->get_trial_price();
         $trial_duration = $product->get_trial_duration();
         $trial_period = $product->get_trial_period();

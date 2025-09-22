@@ -85,22 +85,11 @@ class ZlaarkSubscriptionsProductType {
         add_filter('woocommerce_is_purchasable', array($this, 'subscription_is_purchasable'), 10, 2);
         add_filter('woocommerce_product_supports', array($this, 'subscription_product_supports'), 10, 3);
 
-        // Handle template loading for subscription products - multiple hooks
+        // Handle template loading for subscription products - simplified approach
         add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
-        add_filter('woocommerce_locate_template', array($this, 'locate_subscription_template'), 10, 3);
-        add_action('woocommerce_single_product_summary', array($this, 'force_subscription_template_load'), 29);
 
-        // Force WooCommerce to load add-to-cart template for subscription products
-        add_action('woocommerce_single_product_summary', array($this, 'trigger_add_to_cart_template'), 28);
-
-        // Hook directly into WooCommerce's add-to-cart action
-        add_action('woocommerce_subscription_add_to_cart', array($this, 'subscription_add_to_cart_action'));
-
-        // Override WooCommerce's template loading for subscription products
-        add_action('woocommerce_single_product_summary', array($this, 'override_wc_add_to_cart'), 29);
-
-        // Direct hook at the standard WooCommerce add-to-cart priority
-        add_action('woocommerce_single_product_summary', array($this, 'direct_add_to_cart_injection'), 30);
+        // Single template loading hook at standard WooCommerce priority
+        add_action('woocommerce_single_product_summary', array($this, 'load_subscription_template'), 30);
 
         // Multiple fallback methods for add to cart button
         add_action('woocommerce_single_product_summary', array($this, 'ensure_subscription_add_to_cart'), 30);
@@ -846,34 +835,46 @@ class ZlaarkSubscriptionsProductType {
     }
 
     /**
-     * Direct add-to-cart injection at standard WooCommerce priority
+     * Load subscription template - simplified approach
      */
-    public function direct_add_to_cart_injection() {
+    public function load_subscription_template() {
         global $product;
 
         if (!$product || $product->get_type() !== 'subscription') {
             return;
         }
 
-        // Only inject if no add-to-cart has been rendered yet
-        if (did_action('woocommerce_template_single_add_to_cart')) {
+        // Only load if product is purchasable and in stock
+        if (!$product->is_purchasable() || !$product->is_in_stock()) {
             return;
         }
 
-        // This is the exact same priority and location where WooCommerce normally shows add-to-cart
-        if ($product->is_purchasable() && $product->is_in_stock()) {
-            // Load our template directly
-            $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+        // Prevent multiple template loads
+        static $template_loaded = false;
+        if ($template_loaded) {
+            return;
+        }
+        $template_loaded = true;
 
-            if (file_exists($template_path)) {
-                // Mark that we're loading the template
-                do_action('woocommerce_template_single_add_to_cart');
+        // Load our subscription template
+        $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
 
-                // Include the template
-                include $template_path;
+        if (file_exists($template_path)) {
+            // Remove default WooCommerce add-to-cart action to prevent conflicts
+            remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
 
-                return;
-            }
+            // Load our custom template
+            include $template_path;
+
+            // Mark that we've loaded the template
+            do_action('woocommerce_template_single_add_to_cart');
+        } else {
+            // Fallback to basic add to cart
+            echo '<form class="cart" method="post" enctype="multipart/form-data">';
+            echo '<button type="submit" name="add-to-cart" value="' . esc_attr($product->get_id()) . '" class="single_add_to_cart_button button alt">';
+            echo esc_html__('Subscribe Now', 'zlaark-subscriptions');
+            echo '</button>';
+            echo '</form>';
         }
     }
 
