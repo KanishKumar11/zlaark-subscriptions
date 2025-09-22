@@ -897,9 +897,20 @@ class ZlaarkSubscriptionsProductType {
                         <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="single_add_to_cart_button button alt subscription-add-to-cart-button">
                             <?php
                             if (method_exists($product, 'has_trial') && $product->has_trial()) {
-                                echo esc_html__('Start Trial', 'zlaark-subscriptions');
+                                $trial_price = $product->get_trial_price();
+                                if ($trial_price > 0) {
+                                    printf(__('Start Trial - %s', 'zlaark-subscriptions'), wc_price($trial_price));
+                                } else {
+                                    echo esc_html__('Start FREE Trial', 'zlaark-subscriptions');
+                                }
                             } else {
-                                echo esc_html__('Start Subscription', 'zlaark-subscriptions');
+                                $recurring_price = method_exists($product, 'get_recurring_price') ? $product->get_recurring_price() : 0;
+                                $billing_interval = method_exists($product, 'get_billing_interval') ? $product->get_billing_interval() : '';
+                                if ($recurring_price > 0 && $billing_interval) {
+                                    printf(__('Subscribe - %s %s', 'zlaark-subscriptions'), wc_price($recurring_price), $billing_interval);
+                                } else {
+                                    echo esc_html__('Start Subscription', 'zlaark-subscriptions');
+                                }
                             }
                             ?>
                         </button>
@@ -937,7 +948,13 @@ class ZlaarkSubscriptionsProductType {
                     </div>
 
                     <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="single_add_to_cart_button button alt" style="width: 100%; padding: 15px; font-size: 16px; background: #f44336; border-color: #f44336;">
-                        🚨 Emergency: Start Subscription
+                        <?php
+                        if (method_exists($product, 'has_trial') && $product->has_trial()) {
+                            echo '🚨 Emergency: Start Trial';
+                        } else {
+                            echo '🚨 Emergency: Start Subscription';
+                        }
+                        ?>
                     </button>
                 </form>
 

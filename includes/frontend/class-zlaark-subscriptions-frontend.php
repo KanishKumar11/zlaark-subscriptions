@@ -51,6 +51,9 @@ class ZlaarkSubscriptionsFrontend {
         // Add subscription info to single product page (higher priority than product type class)
         add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 26);
 
+        // Add prominent trial information display
+        add_action('woocommerce_single_product_summary', array($this, 'display_trial_highlight'), 22);
+
         // Ensure add to cart button appears for subscription products
         add_action('woocommerce_single_product_summary', array($this, 'force_subscription_add_to_cart'), 31);
 
@@ -114,7 +117,127 @@ class ZlaarkSubscriptionsFrontend {
             ));
         }
     }
-    
+
+    /**
+     * Display prominent trial highlight on single product page
+     */
+    public function display_trial_highlight() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Only show if product has a trial
+        if (!method_exists($product, 'has_trial') || !$product->has_trial()) {
+            return;
+        }
+
+        $trial_price = $product->get_trial_price();
+        $trial_duration = $product->get_trial_duration();
+        $trial_period = $product->get_trial_period();
+        $recurring_price = method_exists($product, 'get_recurring_price') ? $product->get_recurring_price() : 0;
+        $billing_interval = method_exists($product, 'get_billing_interval') ? $product->get_billing_interval() : '';
+
+        ?>
+        <div class="subscription-trial-banner">
+            <div class="trial-banner-content">
+                <?php if ($trial_price > 0): ?>
+                    <div class="trial-offer-badge">
+                        <span class="trial-label"><?php _e('Special Trial Offer', 'zlaark-subscriptions'); ?></span>
+                        <span class="trial-price-large"><?php echo wc_price($trial_price); ?></span>
+                        <span class="trial-duration-large"><?php printf(__('for %d %s', 'zlaark-subscriptions'), $trial_duration, $trial_period); ?></span>
+                    </div>
+                <?php else: ?>
+                    <div class="trial-free-badge-large">
+                        <span class="free-trial-label"><?php _e('FREE TRIAL', 'zlaark-subscriptions'); ?></span>
+                        <span class="free-trial-duration"><?php printf(__('%d %s - No Payment Required!', 'zlaark-subscriptions'), $trial_duration, $trial_period); ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <div class="trial-then-info">
+                    <?php printf(__('Then %s %s', 'zlaark-subscriptions'), wc_price($recurring_price), $billing_interval); ?>
+                </div>
+            </div>
+        </div>
+
+        <style>
+        .subscription-trial-banner {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .subscription-trial-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .trial-banner-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .trial-offer-badge .trial-label,
+        .free-trial-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            opacity: 0.9;
+        }
+
+        .trial-price-large {
+            display: block;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .trial-duration-large,
+        .free-trial-duration {
+            display: block;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .free-trial-label {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .trial-then-info {
+            font-size: 16px;
+            opacity: 0.9;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        </style>
+        <?php
+    }
+
     /**
      * Display subscription info on product page
      */
@@ -770,9 +893,20 @@ class ZlaarkSubscriptionsFrontend {
                         <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="single_add_to_cart_button button alt subscription-add-to-cart-button">
                             <?php
                             if (method_exists($product, 'has_trial') && $product->has_trial()) {
-                                echo esc_html__('Start Trial', 'zlaark-subscriptions');
+                                $trial_price = $product->get_trial_price();
+                                if ($trial_price > 0) {
+                                    printf(__('Start Trial - %s', 'zlaark-subscriptions'), wc_price($trial_price));
+                                } else {
+                                    echo esc_html__('Start FREE Trial', 'zlaark-subscriptions');
+                                }
                             } else {
-                                echo esc_html__('Start Subscription', 'zlaark-subscriptions');
+                                $recurring_price = method_exists($product, 'get_recurring_price') ? $product->get_recurring_price() : 0;
+                                $billing_interval = method_exists($product, 'get_billing_interval') ? $product->get_billing_interval() : '';
+                                if ($recurring_price > 0 && $billing_interval) {
+                                    printf(__('Subscribe - %s %s', 'zlaark-subscriptions'), wc_price($recurring_price), $billing_interval);
+                                } else {
+                                    echo esc_html__('Start Subscription', 'zlaark-subscriptions');
+                                }
                             }
                             ?>
                         </button>

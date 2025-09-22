@@ -2,6 +2,195 @@
  * Frontend styles for Zlaark Subscriptions
  */
 
+/* Enhanced Subscription Pricing Display */
+.subscription-pricing-breakdown {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 25px 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.subscription-trial-highlight {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border: 2px solid #28a745;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.subscription-trial-highlight::before {
+    content: "TRIAL OFFER";
+    position: absolute;
+    top: -5px;
+    right: -30px;
+    background: #28a745;
+    color: white;
+    padding: 5px 40px;
+    font-size: 12px;
+    font-weight: bold;
+    transform: rotate(45deg);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.trial-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.trial-price-badge {
+    background: #28a745;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.trial-free-badge {
+    background: #17a2b8;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.trial-duration {
+    background: rgba(255, 255, 255, 0.8);
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.trial-description {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+}
+
+.trial-info {
+    margin: 0;
+    font-size: 16px;
+    color: #155724;
+    font-weight: 500;
+}
+
+.subscription-after-trial {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 15px;
+}
+
+.after-trial-label {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.recurring-price-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.recurring-amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007cba;
+}
+
+.recurring-interval {
+    background: #007cba;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.subscription-regular-pricing {
+    text-align: center;
+    padding: 20px;
+}
+
+.subscription-price-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.subscription-amount {
+    font-size: 28px;
+    font-weight: bold;
+    color: #007cba;
+}
+
+.subscription-interval {
+    background: #007cba;
+    color: white;
+    padding: 6px 16px;
+    border-radius: 15px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.signup-fee-info {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    color: #856404;
+    font-size: 14px;
+}
+
+.subscription-description p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+/* Enhanced Add to Cart Button */
+.subscription-add-to-cart-button {
+    width: 100% !important;
+    padding: 15px 20px !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.subscription-add-to-cart-button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
 /* Subscription Details on Product Page */
 .subscription-details {
     background: #f8f9fa;
