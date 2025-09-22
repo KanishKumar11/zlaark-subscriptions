@@ -68,7 +68,12 @@ final class ZlaarkSubscriptions {
     private function init_hooks() {
         add_action('plugins_loaded', array($this, 'init'), 10);
         add_action('init', array($this, 'load_textdomain'));
-        
+
+        // Early initialization for product type registration
+        add_action('plugins_loaded', array($this, 'early_init'), 5);
+        add_action('init', array($this, 'force_init'), 5);
+        add_action('wp_loaded', array($this, 'final_init'), 5);
+
         // Activation and deactivation hooks
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
@@ -157,7 +162,8 @@ final class ZlaarkSubscriptions {
         require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-manager.php';
         require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-cron.php';
         require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-emails.php';
-        
+        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-debug.php';
+
         // Payment gateway
         require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/gateways/class-zlaark-razorpay-gateway.php';
         
@@ -197,9 +203,12 @@ final class ZlaarkSubscriptions {
         
         // Initialize emails
         ZlaarkSubscriptionsEmails::instance();
-        
+
         // Initialize webhook handler
         ZlaarkSubscriptionsWebhooks::instance();
+
+        // Initialize debug system
+        ZlaarkSubscriptionsDebug::instance();
         
         // Initialize admin components
         if (is_admin()) {
@@ -214,16 +223,62 @@ final class ZlaarkSubscriptions {
     }
     
     /**
+     * Early initialization - runs as soon as possible
+     */
+    public function early_init() {
+        if (class_exists('WooCommerce')) {
+            $this->init_product_type();
+        }
+    }
+
+    /**
+     * Force initialization - runs on init hook
+     */
+    public function force_init() {
+        if (class_exists('WooCommerce')) {
+            $this->init_product_type();
+        }
+    }
+
+    /**
+     * Final initialization - runs after everything is loaded
+     */
+    public function final_init() {
+        if (class_exists('WooCommerce')) {
+            $this->init_product_type();
+        }
+    }
+
+    /**
+     * Initialize product type with safety checks
+     */
+    private function init_product_type() {
+        static $initialized = false;
+
+        if ($initialized) {
+            return;
+        }
+
+        // Initialize product type
+        ZlaarkSubscriptionsProductType::instance();
+
+        // Mark as initialized
+        $initialized = true;
+        do_action('zlaark_subscriptions_product_type_init');
+
+        // Log initialization for debugging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Product type initialized at ' . current_action());
+        }
+    }
+
+    /**
      * Late initialization to ensure WooCommerce is ready
      */
     public function late_init() {
         // Only run if WooCommerce is active and not already initialized
         if (class_exists('WooCommerce') && !did_action('zlaark_subscriptions_product_type_init')) {
-            // Initialize product type
-            ZlaarkSubscriptionsProductType::instance();
-
-            // Mark as initialized
-            do_action('zlaark_subscriptions_product_type_init');
+            $this->init_product_type();
         }
     }
 
@@ -232,7 +287,7 @@ final class ZlaarkSubscriptions {
      */
     public function woocommerce_loaded() {
         // Initialize product type
-        ZlaarkSubscriptionsProductType::instance();
+        $this->init_product_type();
 
         // Add payment gateway
         add_filter('woocommerce_payment_gateways', array($this, 'add_payment_gateway'));

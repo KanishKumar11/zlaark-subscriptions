@@ -45,12 +45,22 @@ class ZlaarkSubscriptionsProductType {
      * Initialize hooks
      */
     private function init_hooks() {
-        // Add subscription product type with multiple hook priorities
+        // Force early product type registration
+        $this->force_product_type_registration();
+
+        // Add subscription product type with multiple hook priorities and early registration
+        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 5);
         add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 10);
         add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 20);
+        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 999);
 
-        // Force registration on admin_init for admin pages
+        // Force registration on multiple hooks
+        add_action('init', array($this, 'force_product_type_registration'), 5);
         add_action('admin_init', array($this, 'force_product_type_registration'));
+        add_action('wp_loaded', array($this, 'force_product_type_registration'));
+
+        // Modify product class for subscription products (early priority)
+        add_filter('woocommerce_product_class', array($this, 'get_subscription_product_class'), 5, 2);
 
         // Add subscription product data tabs
         add_filter('woocommerce_product_data_tabs', array($this, 'add_subscription_product_data_tab'));
@@ -60,9 +70,6 @@ class ZlaarkSubscriptionsProductType {
 
         // Save subscription product data
         add_action('woocommerce_process_product_meta', array($this, 'save_subscription_product_data'));
-
-        // Modify product class for subscription products
-        add_filter('woocommerce_product_class', array($this, 'get_subscription_product_class'), 10, 2);
 
         // Hide/show fields based on product type
         add_action('admin_footer', array($this, 'subscription_product_type_js'));
@@ -84,18 +91,67 @@ class ZlaarkSubscriptionsProductType {
         // Handle template loading for subscription products
         add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
 
-        // Fallback: Force add to cart button display for subscription products
+        // Multiple fallback methods for add to cart button
         add_action('woocommerce_single_product_summary', array($this, 'ensure_subscription_add_to_cart'), 30);
+        add_action('woocommerce_single_product_summary', array($this, 'emergency_add_to_cart_fallback'), 35);
     }
     
     /**
-     * Force product type registration on admin pages
+     * Force product type registration everywhere
      */
     public function force_product_type_registration() {
-        if (is_admin() && class_exists('WooCommerce')) {
-            // Ensure our product type is registered
-            add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 999);
+        static $forced = false;
+
+        if ($forced) {
+            return;
         }
+
+        if (class_exists('WooCommerce')) {
+            // Force registration with multiple priorities
+            add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 999);
+
+            // Also register directly with WooCommerce if possible
+            if (function_exists('wc_get_product_types')) {
+                $types = wc_get_product_types();
+                if (!isset($types['subscription'])) {
+                    // Try to register directly
+                    global $woocommerce;
+                    if (isset($woocommerce->product_factory)) {
+                        // Force the product type to be recognized
+                        $this->register_subscription_product_type_directly();
+                    }
+                }
+            }
+
+            $forced = true;
+
+            // Log for debugging
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Forced product type registration');
+            }
+        }
+    }
+
+    /**
+     * Register subscription product type directly with WooCommerce
+     */
+    private function register_subscription_product_type_directly() {
+        // This is a more aggressive approach to ensure the product type is registered
+        if (class_exists('WC_Product_Factory')) {
+            // Force load our product class
+            require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-wc-product-subscription.php';
+
+            // Register the product type in WooCommerce's internal registry
+            add_filter('woocommerce_data_stores', array($this, 'register_subscription_data_store'));
+        }
+    }
+
+    /**
+     * Register subscription data store
+     */
+    public function register_subscription_data_store($stores) {
+        $stores['product-subscription'] = 'WC_Product_Data_Store_CPT';
+        return $stores;
     }
 
     /**
@@ -581,6 +637,45 @@ class ZlaarkSubscriptionsProductType {
                 </div>
                 <?php
             }
+        }
+    }
+
+    /**
+     * Emergency fallback for add to cart button
+     */
+    public function emergency_add_to_cart_fallback() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Only show if no other add to cart button was rendered
+        if (!did_action('woocommerce_template_single_add_to_cart')) {
+            ?>
+            <div class="emergency-subscription-add-to-cart" style="margin: 20px 0; padding: 20px; background: #ffebee; border: 2px solid #f44336; border-radius: 8px;">
+                <h4 style="color: #d32f2f; margin-top: 0;">⚠️ Emergency Add to Cart</h4>
+                <p style="color: #666;">The normal add to cart system failed to load. Using emergency fallback.</p>
+
+                <form class="cart" action="<?php echo esc_url($product->get_permalink()); ?>" method="post" enctype='multipart/form-data'>
+                    <?php wp_nonce_field('woocommerce-add-to-cart', 'woocommerce-add-to-cart-nonce'); ?>
+
+                    <div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                        <?php if (method_exists($product, 'get_recurring_price')): ?>
+                            <strong>Price: ₹<?php echo number_format($product->get_recurring_price(), 2); ?> <?php echo $product->get_billing_interval(); ?></strong>
+                        <?php endif; ?>
+                    </div>
+
+                    <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="single_add_to_cart_button button alt" style="width: 100%; padding: 15px; font-size: 16px; background: #f44336; border-color: #f44336;">
+                        🚨 Emergency: Start Subscription
+                    </button>
+                </form>
+
+                <p style="font-size: 12px; color: #999; margin-bottom: 0;">
+                    If you see this, please contact the site administrator about the subscription system initialization issue.
+                </p>
+            </div>
+            <?php
         }
     }
 }
