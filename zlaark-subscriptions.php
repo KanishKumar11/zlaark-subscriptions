@@ -69,6 +69,10 @@ final class ZlaarkSubscriptions {
         add_action('plugins_loaded', array($this, 'init'), 10);
         add_action('init', array($this, 'load_textdomain'));
 
+        // Early product type registration - try multiple hooks
+        add_action('plugins_loaded', array($this, 'early_product_type_init'), 5);
+        add_action('init', array($this, 'early_product_type_init'), 5);
+
         // Activation and deactivation hooks
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
@@ -83,18 +87,21 @@ final class ZlaarkSubscriptions {
             add_action('admin_notices', array($this, 'woocommerce_missing_notice'));
             return;
         }
-        
+
         // Check minimum requirements
         if (!$this->check_requirements()) {
             return;
         }
-        
+
         // Include required files
         $this->includes();
-        
+
+        // Initialize product type immediately if WooCommerce is available
+        $this->init_product_type();
+
         // Initialize components
         $this->init_components();
-        
+
         // Hook into WooCommerce
         add_action('woocommerce_loaded', array($this, 'woocommerce_loaded'));
     }
@@ -258,6 +265,15 @@ final class ZlaarkSubscriptions {
         }
     }
     
+    /**
+     * Early product type initialization - runs as early as possible
+     */
+    public function early_product_type_init() {
+        if (class_exists('WooCommerce')) {
+            $this->init_product_type();
+        }
+    }
+
     /**
      * Initialize product type with safety checks
      */

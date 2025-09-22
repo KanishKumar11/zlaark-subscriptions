@@ -663,6 +663,12 @@ class ZlaarkSubscriptionsAdmin {
         $product_types = wc_get_product_types();
         $subscription_registered = isset($product_types['subscription']);
 
+        // Get detailed debug status
+        $debug_status = array();
+        if (class_exists('ZlaarkSubscriptionsProductType')) {
+            $debug_status = ZlaarkSubscriptionsProductType::debug_registration_status();
+        }
+
         ?>
         <table class="widefat">
             <tbody>
@@ -684,23 +690,51 @@ class ZlaarkSubscriptionsAdmin {
                     </td>
                 </tr>
                 <tr>
-                    <td><strong>Hooks Registered</strong></td>
+                    <td><strong>All Product Types</strong></td>
+                    <td><?php echo implode(', ', array_keys($product_types)); ?></td>
+                </tr>
+                <tr>
+                    <td><strong>Filter Callbacks</strong></td>
                     <td>
                         <?php
                         $hooks = [
                             'product_type_selector' => count($GLOBALS['wp_filter']['product_type_selector']->callbacks ?? []),
-                            'woocommerce_product_class' => count($GLOBALS['wp_filter']['woocommerce_product_class']->callbacks ?? []),
-                            'woocommerce_single_product_summary' => count($GLOBALS['wp_filter']['woocommerce_single_product_summary']->callbacks ?? [])
+                            'woocommerce_product_class' => count($GLOBALS['wp_filter']['woocommerce_product_class']->callbacks ?? [])
                         ];
 
                         foreach ($hooks as $hook => $count) {
-                            echo "<strong>$hook:</strong> $count<br>";
+                            $status = $count > 0 ? '✅' : '❌';
+                            echo "<strong>$hook:</strong> $status $count callbacks<br>";
                         }
                         ?>
                     </td>
                 </tr>
+                <?php if (!empty($debug_status)): ?>
+                <tr>
+                    <td><strong>Debug Status</strong></td>
+                    <td>
+                        <strong>WC Active:</strong> <?php echo $debug_status['woocommerce_active'] ? '✅' : '❌'; ?><br>
+                        <strong>wc_get_product_types exists:</strong> <?php echo $debug_status['product_types_function_exists'] ? '✅' : '❌'; ?><br>
+                        <strong>Subscription in types:</strong> <?php echo $debug_status['subscription_in_types'] ? '✅' : '❌'; ?><br>
+                    </td>
+                </tr>
+                <?php endif; ?>
             </tbody>
         </table>
+
+        <?php if (!$subscription_registered): ?>
+        <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin: 10px 0;">
+            <strong>⚠️ Product Type Not Registered</strong><br>
+            The subscription product type is not appearing in WooCommerce's product types. This could be due to:
+            <ul>
+                <li>Plugin loading order issues</li>
+                <li>WooCommerce not being fully loaded when registration occurs</li>
+                <li>Caching issues</li>
+                <li>Filter hooks not being called at the right time</li>
+            </ul>
+            Try using the "Force Re-Initialize" button above to fix this issue.
+        </div>
+        <?php endif; ?>
         <?php
     }
 
@@ -770,15 +804,26 @@ class ZlaarkSubscriptionsAdmin {
         // Force re-initialization
         delete_transient('zlaark_subscriptions_init_status');
 
-        // Force product type registration
-        ZlaarkSubscriptionsProductType::instance()->force_product_type_registration();
+        // Clear WooCommerce product type cache
+        wp_cache_delete('wc_product_types', 'woocommerce');
+        delete_transient('wc_product_types');
+
+        // Force product type registration with diagnostics
+        $registration_result = ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
+
+        // Also try the regular method
+        if (class_exists('ZlaarkSubscriptionsProductType')) {
+            ZlaarkSubscriptionsProductType::instance()->register_product_type_now();
+        }
 
         // Clear any object cache
         if (function_exists('wp_cache_flush')) {
             wp_cache_flush();
         }
 
-        wp_redirect(add_query_arg(['page' => 'zlaark-subscriptions-diagnostics', 'message' => 'force_init'], admin_url('admin.php')));
+        // Add result to redirect
+        $message = $registration_result ? 'force_init_success' : 'force_init_partial';
+        wp_redirect(add_query_arg(['page' => 'zlaark-subscriptions-diagnostics', 'message' => $message], admin_url('admin.php')));
         exit;
     }
 

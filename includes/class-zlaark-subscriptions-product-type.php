@@ -45,19 +45,16 @@ class ZlaarkSubscriptionsProductType {
      * Initialize hooks
      */
     private function init_hooks() {
-        // Force early product type registration
-        $this->force_product_type_registration();
+        // Register product type immediately if WooCommerce is already loaded
+        if (class_exists('WooCommerce')) {
+            $this->register_product_type_now();
+        }
 
-        // Add subscription product type with multiple hook priorities and early registration
-        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 5);
-        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 10);
-        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 20);
-        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 999);
-
-        // Force registration on multiple hooks
-        add_action('init', array($this, 'force_product_type_registration'), 5);
-        add_action('admin_init', array($this, 'force_product_type_registration'));
-        add_action('wp_loaded', array($this, 'force_product_type_registration'));
+        // Register on multiple hooks to ensure it works regardless of loading order
+        add_action('plugins_loaded', array($this, 'register_product_type_now'), 5);
+        add_action('init', array($this, 'register_product_type_now'), 5);
+        add_action('woocommerce_init', array($this, 'register_product_type_now'), 5);
+        add_action('admin_init', array($this, 'register_product_type_now'), 5);
 
         // Modify product class for subscription products (early priority)
         add_filter('woocommerce_product_class', array($this, 'get_subscription_product_class'), 5, 2);
@@ -97,39 +94,136 @@ class ZlaarkSubscriptionsProductType {
     }
     
     /**
-     * Force product type registration everywhere
+     * Register product type immediately
      */
-    public function force_product_type_registration() {
-        static $forced = false;
+    public function register_product_type_now() {
+        static $registered = false;
 
-        if ($forced) {
+        if ($registered) {
             return;
         }
 
-        if (class_exists('WooCommerce')) {
-            // Force registration with multiple priorities
-            add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 999);
+        if (!class_exists('WooCommerce')) {
+            return;
+        }
 
-            // Also register directly with WooCommerce if possible
-            if (function_exists('wc_get_product_types')) {
-                $types = wc_get_product_types();
-                if (!isset($types['subscription'])) {
-                    // Try to register directly
-                    global $woocommerce;
-                    if (isset($woocommerce->product_factory)) {
-                        // Force the product type to be recognized
-                        $this->register_subscription_product_type_directly();
-                    }
-                }
-            }
+        // Register the product type selector filter
+        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 10);
 
-            $forced = true;
+        // Also try to register with higher priority in case it was missed
+        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 999);
 
-            // Log for debugging
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Zlaark Subscriptions: Forced product type registration');
+        // Force registration in WooCommerce's internal system
+        $this->force_woocommerce_registration();
+
+        $registered = true;
+
+        // Log for debugging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Product type registered at ' . current_action());
+        }
+    }
+
+    /**
+     * Force registration in WooCommerce's internal system
+     */
+    private function force_woocommerce_registration() {
+        // Try to register directly with WooCommerce
+        if (function_exists('wc_get_product_types')) {
+            // Force the filter to run now to ensure our type is included
+            $current_types = apply_filters('product_type_selector', array());
+
+            // If our type isn't there, something is wrong with the filter
+            if (!isset($current_types['subscription'])) {
+                // Try multiple approaches to force registration
+                $this->direct_woocommerce_registration();
             }
         }
+
+        // Also register the data store
+        add_filter('woocommerce_data_stores', array($this, 'register_subscription_data_store'), 10);
+    }
+
+    /**
+     * Direct registration with WooCommerce bypassing normal filters
+     */
+    private function direct_woocommerce_registration() {
+        // Method 1: Try to access WooCommerce's internal product types
+        global $wc_product_types;
+        if (!is_array($wc_product_types)) {
+            $wc_product_types = array();
+        }
+        $wc_product_types['subscription'] = __('Subscription', 'zlaark-subscriptions');
+
+        // Method 2: Try to hook into WooCommerce's product type registration
+        if (class_exists('WC_Product_Factory')) {
+            // Force the product factory to recognize our type
+            add_filter('woocommerce_product_class', array($this, 'get_subscription_product_class'), 1, 2);
+        }
+
+        // Method 3: Try to register with WooCommerce admin if we're in admin
+        if (is_admin() && function_exists('wc_get_product_types')) {
+            // Force add to the admin product type selector
+            add_action('admin_footer', array($this, 'force_admin_product_type_js'), 999);
+        }
+
+        // Method 4: Hook into WooCommerce initialization
+        add_action('woocommerce_init', array($this, 'late_product_type_registration'), 999);
+    }
+
+    /**
+     * Late product type registration as last resort
+     */
+    public function late_product_type_registration() {
+        // Force add the filter one more time
+        add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 9999);
+
+        // Try to clear any cached product types
+        if (function_exists('wp_cache_delete')) {
+            wp_cache_delete('wc_product_types', 'woocommerce');
+        }
+
+        // Force the filter to run
+        if (function_exists('wc_get_product_types')) {
+            $types = wc_get_product_types();
+            if (!isset($types['subscription'])) {
+                // Last resort: modify the global directly
+                global $wp_filter;
+                if (!isset($wp_filter['product_type_selector'])) {
+                    $wp_filter['product_type_selector'] = new WP_Hook();
+                }
+                $wp_filter['product_type_selector']->add_filter('product_type_selector', array($this, 'add_subscription_product_type'), 10, 1);
+            }
+        }
+    }
+
+    /**
+     * Force admin product type JavaScript
+     */
+    public function force_admin_product_type_js() {
+        global $post, $pagenow;
+
+        if (($pagenow !== 'post.php' && $pagenow !== 'post-new.php') || !$post || $post->post_type !== 'product') {
+            return;
+        }
+
+        ?>
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            // Force add subscription to product type selector if it's missing
+            if ($('#product-type option[value="subscription"]').length === 0) {
+                $('#product-type').append('<option value="subscription"><?php echo esc_js(__('Subscription', 'zlaark-subscriptions')); ?></option>');
+            }
+        });
+        </script>
+        <?php
+    }
+
+    /**
+     * Legacy method for backward compatibility
+     */
+    public function force_product_type_registration() {
+        $this->register_product_type_now();
     }
 
     /**
@@ -677,5 +771,58 @@ class ZlaarkSubscriptionsProductType {
             </div>
             <?php
         }
+    }
+
+    /**
+     * Debug method to check registration status
+     */
+    public static function debug_registration_status() {
+        $status = array(
+            'woocommerce_active' => class_exists('WooCommerce'),
+            'product_types_function_exists' => function_exists('wc_get_product_types'),
+            'current_product_types' => function_exists('wc_get_product_types') ? wc_get_product_types() : array(),
+            'subscription_in_types' => false,
+            'filter_callbacks' => array(),
+            'hooks_registered' => array()
+        );
+
+        if (function_exists('wc_get_product_types')) {
+            $types = wc_get_product_types();
+            $status['subscription_in_types'] = isset($types['subscription']);
+        }
+
+        // Check filter callbacks
+        global $wp_filter;
+        if (isset($wp_filter['product_type_selector'])) {
+            $status['filter_callbacks']['product_type_selector'] = count($wp_filter['product_type_selector']->callbacks);
+        }
+        if (isset($wp_filter['woocommerce_product_class'])) {
+            $status['filter_callbacks']['woocommerce_product_class'] = count($wp_filter['woocommerce_product_class']->callbacks);
+        }
+
+        return $status;
+    }
+
+    /**
+     * Force registration for diagnostics
+     */
+    public static function force_registration_for_diagnostics() {
+        if (class_exists('ZlaarkSubscriptionsProductType')) {
+            $instance = self::instance();
+            $instance->register_product_type_now();
+
+            // Also try to force the filter to run
+            if (function_exists('wc_get_product_types')) {
+                // Clear any cached product types
+                wp_cache_delete('wc_product_types', 'woocommerce');
+
+                // Force the filter to run
+                $types = apply_filters('product_type_selector', array());
+
+                return isset($types['subscription']);
+            }
+        }
+
+        return false;
     }
 }
