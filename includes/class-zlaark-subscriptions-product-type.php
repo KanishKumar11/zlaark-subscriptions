@@ -76,6 +76,10 @@ class ZlaarkSubscriptionsProductType {
         // Modify add to cart button for subscription products
         add_filter('woocommerce_product_add_to_cart_text', array($this, 'subscription_add_to_cart_text'), 10, 2);
         add_filter('woocommerce_product_add_to_cart_url', array($this, 'subscription_add_to_cart_url'), 10, 2);
+
+        // Ensure subscription products show add to cart button
+        add_filter('woocommerce_is_purchasable', array($this, 'subscription_is_purchasable'), 10, 2);
+        add_filter('woocommerce_product_supports', array($this, 'subscription_product_supports'), 10, 3);
     }
     
     /**
@@ -376,51 +380,76 @@ class ZlaarkSubscriptionsProductType {
      */
     public function display_subscription_info() {
         global $product;
-        
+
         if (!$product || $product->get_type() !== 'subscription') {
             return;
         }
-        
-        $trial_price = $product->get_meta('_subscription_trial_price');
-        $trial_duration = $product->get_meta('_subscription_trial_duration');
-        $trial_period = $product->get_meta('_subscription_trial_period');
-        $recurring_price = $product->get_meta('_subscription_recurring_price');
-        $billing_interval = $product->get_meta('_subscription_billing_interval');
-        $signup_fee = $product->get_meta('_subscription_signup_fee');
-        
-        echo '<div class="subscription-info">';
-        
-        if (!empty($trial_price) && !empty($trial_duration)) {
-            echo '<p class="subscription-trial">';
-            printf(
-                __('Trial: ₹%s for %d %s', 'zlaark-subscriptions'),
-                number_format($trial_price, 2),
-                $trial_duration,
-                $trial_period
-            );
-            echo '</p>';
-        }
-        
-        if (!empty($recurring_price)) {
-            echo '<p class="subscription-recurring">';
-            printf(
-                __('Then: ₹%s %s', 'zlaark-subscriptions'),
-                number_format($recurring_price, 2),
-                $billing_interval
-            );
-            echo '</p>';
-        }
-        
-        if (!empty($signup_fee)) {
-            echo '<p class="subscription-signup-fee">';
-            printf(
-                __('Sign-up fee: ₹%s', 'zlaark-subscriptions'),
-                number_format($signup_fee, 2)
-            );
-            echo '</p>';
-        }
-        
-        echo '</div>';
+
+        // Use product methods instead of direct meta queries
+        $trial_price = $product->get_trial_price();
+        $trial_duration = $product->get_trial_duration();
+        $trial_period = $product->get_trial_period();
+        $recurring_price = $product->get_recurring_price();
+        $billing_interval = $product->get_billing_interval();
+        $signup_fee = $product->get_signup_fee();
+        $max_length = $product->get_max_length();
+
+        ?>
+        <div class="subscription-details">
+            <h3><?php _e('Subscription Details', 'zlaark-subscriptions'); ?></h3>
+
+            <?php if ($product->has_trial()): ?>
+                <div class="subscription-trial">
+                    <strong><?php _e('Trial Period:', 'zlaark-subscriptions'); ?></strong>
+                    <?php if ($trial_price > 0): ?>
+                        <?php printf(
+                            __('₹%s for %d %s', 'zlaark-subscriptions'),
+                            number_format($trial_price, 2),
+                            $trial_duration,
+                            $trial_period
+                        ); ?>
+                    <?php else: ?>
+                        <?php printf(
+                            __('Free for %d %s', 'zlaark-subscriptions'),
+                            $trial_duration,
+                            $trial_period
+                        ); ?>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="subscription-recurring">
+                <strong><?php _e('Recurring Payment:', 'zlaark-subscriptions'); ?></strong>
+                <?php printf(
+                    __('₹%s %s', 'zlaark-subscriptions'),
+                    number_format($recurring_price, 2),
+                    $billing_interval
+                ); ?>
+            </div>
+
+            <?php if ($signup_fee > 0): ?>
+                <div class="subscription-signup-fee">
+                    <strong><?php _e('Sign-up Fee:', 'zlaark-subscriptions'); ?></strong>
+                    <?php printf(__('₹%s (one-time)', 'zlaark-subscriptions'), number_format($signup_fee, 2)); ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($max_length): ?>
+                <div class="subscription-length">
+                    <strong><?php _e('Subscription Length:', 'zlaark-subscriptions'); ?></strong>
+                    <?php printf(
+                        _n('%d billing cycle', '%d billing cycles', $max_length, 'zlaark-subscriptions'),
+                        $max_length
+                    ); ?>
+                </div>
+            <?php else: ?>
+                <div class="subscription-length">
+                    <strong><?php _e('Subscription Length:', 'zlaark-subscriptions'); ?></strong>
+                    <?php _e('Unlimited', 'zlaark-subscriptions'); ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
     }
     
     /**
@@ -432,7 +461,11 @@ class ZlaarkSubscriptionsProductType {
      */
     public function subscription_add_to_cart_text($text, $product) {
         if ($product && $product->get_type() === 'subscription') {
-            return __('Subscribe Now', 'zlaark-subscriptions');
+            if ($product->has_trial()) {
+                return __('Start Trial', 'zlaark-subscriptions');
+            } else {
+                return __('Start Subscription', 'zlaark-subscriptions');
+            }
         }
         return $text;
     }
@@ -449,5 +482,39 @@ class ZlaarkSubscriptionsProductType {
             return $product->get_permalink();
         }
         return $url;
+    }
+
+    /**
+     * Make subscription products purchasable
+     *
+     * @param bool $purchasable
+     * @param WC_Product $product
+     * @return bool
+     */
+    public function subscription_is_purchasable($purchasable, $product) {
+        if ($product && $product->get_type() === 'subscription') {
+            return $product->get_recurring_price() > 0;
+        }
+        return $purchasable;
+    }
+
+    /**
+     * Add support for subscription product features
+     *
+     * @param bool $supports
+     * @param string $feature
+     * @param WC_Product $product
+     * @return bool
+     */
+    public function subscription_product_supports($supports, $feature, $product) {
+        if ($product && $product->get_type() === 'subscription') {
+            switch ($feature) {
+                case 'ajax_add_to_cart':
+                    return false; // Subscriptions need full checkout
+                default:
+                    return $supports;
+            }
+        }
+        return $supports;
     }
 }

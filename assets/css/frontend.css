@@ -22,14 +22,53 @@
 .subscription-recurring,
 .subscription-signup-fee,
 .subscription-length {
-    margin-bottom: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 12px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.subscription-trial {
+    color: #28a745;
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+}
+
+.subscription-recurring {
+    color: #007cba;
+    background: #cce7f0;
+    border-left: 4px solid #007cba;
+}
+
+.subscription-signup-fee {
+    color: #856404;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
 }
 
 .subscription-length {
-    border-bottom: none;
-    margin-bottom: 0;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-left: 4px solid #6c757d;
+}
+
+.subscription-details strong {
+    display: inline-block;
+    min-width: 140px;
+    font-weight: 600;
+}
+
+/* Add to cart button styling for subscriptions */
+.single-product .cart .single_add_to_cart_button {
+    background-color: #007cba;
+    border-color: #007cba;
+    font-weight: bold;
+    padding: 12px 24px;
+    font-size: 16px;
+}
+
+.single-product .cart .single_add_to_cart_button:hover {
+    background-color: #005a87;
+    border-color: #005a87;
 }
 
 .subscription-details strong {

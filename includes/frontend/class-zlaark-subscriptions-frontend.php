@@ -48,8 +48,8 @@ class ZlaarkSubscriptionsFrontend {
         // Enqueue frontend scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
         
-        // Add subscription info to single product page
-        add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 25);
+        // Add subscription info to single product page (higher priority than product type class)
+        add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 26);
         
         // Modify add to cart behavior for subscription products
         add_filter('woocommerce_add_to_cart_validation', array($this, 'validate_subscription_add_to_cart'), 10, 3);

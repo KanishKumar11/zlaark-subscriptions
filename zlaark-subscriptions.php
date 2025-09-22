@@ -206,8 +206,8 @@ final class ZlaarkSubscriptions {
             ZlaarkSubscriptionsAdmin::instance();
         }
         
-        // Initialize frontend components
-        if (!is_admin()) {
+        // Initialize frontend components (always initialize for AJAX and frontend)
+        if (!is_admin() || wp_doing_ajax()) {
             ZlaarkSubscriptionsFrontend::instance();
             ZlaarkSubscriptionsMyAccount::instance();
         }
