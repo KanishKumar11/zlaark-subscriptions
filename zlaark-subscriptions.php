@@ -3,7 +3,7 @@
  * Plugin Name: Zlaark Subscriptions
  * Plugin URI: https://github.com/kanishkumar11/zlaark-subscriptions
  * Description: A comprehensive WooCommerce subscription plugin with paid trials and Razorpay integration. Functions independently without requiring WooCommerce Subscriptions.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: Kanish Kumar
  * Author URI: https://kanishkumar.in   
  * License: GPL v2 or later
@@ -69,11 +69,6 @@ final class ZlaarkSubscriptions {
         add_action('plugins_loaded', array($this, 'init'), 10);
         add_action('init', array($this, 'load_textdomain'));
 
-        // Early initialization for product type registration
-        add_action('plugins_loaded', array($this, 'early_init'), 5);
-        add_action('init', array($this, 'force_init'), 5);
-        add_action('wp_loaded', array($this, 'final_init'), 5);
-
         // Activation and deactivation hooks
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
@@ -102,9 +97,6 @@ final class ZlaarkSubscriptions {
         
         // Hook into WooCommerce
         add_action('woocommerce_loaded', array($this, 'woocommerce_loaded'));
-
-        // Also try to initialize on plugins_loaded with higher priority
-        add_action('plugins_loaded', array($this, 'late_init'), 20);
     }
     
     /**
@@ -155,36 +147,64 @@ final class ZlaarkSubscriptions {
      */
     private function includes() {
         // Core includes
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-install.php';
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-database.php';
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-wc-product-subscription.php';
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-product-type.php';
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-manager.php';
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-cron.php';
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-emails.php';
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-debug.php';
+        $core_files = [
+            'includes/class-zlaark-subscriptions-install.php',
+            'includes/class-zlaark-subscriptions-database.php',
+            'includes/class-wc-product-subscription.php',
+            'includes/class-zlaark-subscriptions-product-type.php',
+            'includes/class-zlaark-subscriptions-manager.php',
+            'includes/class-zlaark-subscriptions-cron.php',
+            'includes/class-zlaark-subscriptions-emails.php',
+            'includes/class-zlaark-subscriptions-debug.php',
+            'includes/class-zlaark-subscriptions-webhooks.php',
+            'includes/gateways/class-zlaark-razorpay-gateway.php'
+        ];
 
-        // Payment gateway
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/gateways/class-zlaark-razorpay-gateway.php';
-        
+        foreach ($core_files as $file) {
+            $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            } else {
+                error_log("Zlaark Subscriptions: Missing file - $file_path");
+            }
+        }
+
         // Admin includes
         if (is_admin()) {
-            require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/admin/class-zlaark-subscriptions-admin.php';
-            require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/admin/class-zlaark-subscriptions-admin-list.php';
+            $admin_files = [
+                'includes/admin/class-zlaark-subscriptions-admin.php',
+                'includes/admin/class-zlaark-subscriptions-admin-list.php'
+            ];
+
+            foreach ($admin_files as $file) {
+                $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
+                if (file_exists($file_path)) {
+                    require_once $file_path;
+                }
+            }
         }
-        
+
         // Frontend includes
         if (!is_admin()) {
-            require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/frontend/class-zlaark-subscriptions-frontend.php';
-            require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/frontend/class-zlaark-subscriptions-my-account.php';
+            $frontend_files = [
+                'includes/frontend/class-zlaark-subscriptions-frontend.php',
+                'includes/frontend/class-zlaark-subscriptions-my-account.php'
+            ];
+
+            foreach ($frontend_files as $file) {
+                $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
+                if (file_exists($file_path)) {
+                    require_once $file_path;
+                }
+            }
         }
-        
-        // Webhook handler
-        require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/class-zlaark-subscriptions-webhooks.php';
 
         // Test files (only in development)
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            require_once ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'tests/test-plugin-structure.php';
+            $test_file = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'tests/test-plugin-structure.php';
+            if (file_exists($test_file)) {
+                require_once $test_file;
+            }
         }
     }
     
@@ -193,62 +213,51 @@ final class ZlaarkSubscriptions {
      */
     private function init_components() {
         // Initialize database
-        ZlaarkSubscriptionsDatabase::instance();
-        
+        if (class_exists('ZlaarkSubscriptionsDatabase')) {
+            ZlaarkSubscriptionsDatabase::instance();
+        }
+
         // Initialize subscription manager
-        ZlaarkSubscriptionsManager::instance();
-        
+        if (class_exists('ZlaarkSubscriptionsManager')) {
+            ZlaarkSubscriptionsManager::instance();
+        }
+
         // Initialize cron jobs
-        ZlaarkSubscriptionsCron::instance();
-        
+        if (class_exists('ZlaarkSubscriptionsCron')) {
+            ZlaarkSubscriptionsCron::instance();
+        }
+
         // Initialize emails
-        ZlaarkSubscriptionsEmails::instance();
+        if (class_exists('ZlaarkSubscriptionsEmails')) {
+            ZlaarkSubscriptionsEmails::instance();
+        }
 
         // Initialize webhook handler
-        ZlaarkSubscriptionsWebhooks::instance();
+        if (class_exists('ZlaarkSubscriptionsWebhooks')) {
+            ZlaarkSubscriptionsWebhooks::instance();
+        }
 
         // Initialize debug system
-        ZlaarkSubscriptionsDebug::instance();
-        
+        if (class_exists('ZlaarkSubscriptionsDebug')) {
+            ZlaarkSubscriptionsDebug::instance();
+        }
+
         // Initialize admin components
-        if (is_admin()) {
+        if (is_admin() && class_exists('ZlaarkSubscriptionsAdmin')) {
             ZlaarkSubscriptionsAdmin::instance();
         }
-        
+
         // Initialize frontend components (always initialize for AJAX and frontend)
         if (!is_admin() || wp_doing_ajax()) {
-            ZlaarkSubscriptionsFrontend::instance();
-            ZlaarkSubscriptionsMyAccount::instance();
+            if (class_exists('ZlaarkSubscriptionsFrontend')) {
+                ZlaarkSubscriptionsFrontend::instance();
+            }
+            if (class_exists('ZlaarkSubscriptionsMyAccount')) {
+                ZlaarkSubscriptionsMyAccount::instance();
+            }
         }
     }
     
-    /**
-     * Early initialization - runs as soon as possible
-     */
-    public function early_init() {
-        if (class_exists('WooCommerce')) {
-            $this->init_product_type();
-        }
-    }
-
-    /**
-     * Force initialization - runs on init hook
-     */
-    public function force_init() {
-        if (class_exists('WooCommerce')) {
-            $this->init_product_type();
-        }
-    }
-
-    /**
-     * Final initialization - runs after everything is loaded
-     */
-    public function final_init() {
-        if (class_exists('WooCommerce')) {
-            $this->init_product_type();
-        }
-    }
-
     /**
      * Initialize product type with safety checks
      */
@@ -260,25 +269,19 @@ final class ZlaarkSubscriptions {
         }
 
         // Initialize product type
-        ZlaarkSubscriptionsProductType::instance();
+        if (class_exists('ZlaarkSubscriptionsProductType')) {
+            ZlaarkSubscriptionsProductType::instance();
 
-        // Mark as initialized
-        $initialized = true;
-        do_action('zlaark_subscriptions_product_type_init');
+            // Mark as initialized
+            $initialized = true;
+            do_action('zlaark_subscriptions_product_type_init');
 
-        // Log initialization for debugging
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Zlaark Subscriptions: Product type initialized at ' . current_action());
-        }
-    }
-
-    /**
-     * Late initialization to ensure WooCommerce is ready
-     */
-    public function late_init() {
-        // Only run if WooCommerce is active and not already initialized
-        if (class_exists('WooCommerce') && !did_action('zlaark_subscriptions_product_type_init')) {
-            $this->init_product_type();
+            // Log initialization for debugging
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Product type initialized at ' . current_action());
+            }
+        } else {
+            error_log('Zlaark Subscriptions: ZlaarkSubscriptionsProductType class not found');
         }
     }
 
