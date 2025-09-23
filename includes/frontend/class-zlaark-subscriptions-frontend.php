@@ -826,45 +826,52 @@ class ZlaarkSubscriptionsFrontend {
      * @return string
      */
     public function trial_button_shortcode($atts) {
-        $atts = shortcode_atts(array(
-            'product_id' => '',
-            'text' => '',
-            'class' => 'trial-button zlaark-trial-btn',
-            'style' => '',
-            'redirect' => ''
-        ), $atts);
+        // Wrap everything in try-catch to prevent fatal errors
+        try {
+            $atts = shortcode_atts(array(
+                'product_id' => '',
+                'text' => '',
+                'class' => 'trial-button zlaark-trial-btn',
+                'style' => '',
+                'redirect' => ''
+            ), $atts);
 
-        // Get product ID from current context if not provided
-        if (empty($atts['product_id'])) {
-            global $product, $post;
+            // Get product ID from current context if not provided
+            if (empty($atts['product_id'])) {
+                global $product, $post;
 
-            // Try global $product first
-            if ($product && is_object($product) && method_exists($product, 'get_type') && $product->get_type() === 'subscription') {
-                $atts['product_id'] = $product->get_id();
-            }
-            // Fallback to current post if it's a product
-            elseif ($post && $post->post_type === 'product') {
-                $current_product = wc_get_product($post->ID);
-                if ($current_product && $current_product->get_type() === 'subscription') {
-                    $atts['product_id'] = $current_product->get_id();
+                // Try global $product first
+                if ($product && is_object($product) && method_exists($product, 'get_type') && $product->get_type() === 'subscription') {
+                    $atts['product_id'] = $product->get_id();
+                }
+                // Fallback to current post if it's a product
+                elseif ($post && $post->post_type === 'product') {
+                    $current_product = wc_get_product($post->ID);
+                    if ($current_product && $current_product->get_type() === 'subscription') {
+                        $atts['product_id'] = $current_product->get_id();
+                    }
+                }
+
+                // If still no product ID found
+                if (empty($atts['product_id'])) {
+                    return '<p class="error">' . __('Product ID required for trial button.', 'zlaark-subscriptions') . '</p>';
                 }
             }
 
-            // If still no product ID found
-            if (empty($atts['product_id'])) {
-                return '<p class="error">' . __('Product ID required for trial button.', 'zlaark-subscriptions') . '</p>';
+            // Safely ensure product type is registered
+            if (class_exists('ZlaarkSubscriptionsProductType')) {
+                try {
+                    ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
+                } catch (Exception $e) {
+                    // Log error but don't break the shortcode
+                    error_log('Zlaark Subscriptions: Error in force_registration_for_diagnostics: ' . $e->getMessage());
+                }
             }
-        }
 
-        // Ensure product type is registered before loading product
-        if (class_exists('ZlaarkSubscriptionsProductType')) {
-            ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
-        }
-
-        $product = wc_get_product($atts['product_id']);
-        if (!$product || $product->get_type() !== 'subscription') {
-            return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
-        }
+            $product = wc_get_product($atts['product_id']);
+            if (!$product || $product->get_type() !== 'subscription') {
+                return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
+            }
 
         // Check if product has trial with detailed debugging
         $has_trial = false;
@@ -977,6 +984,16 @@ class ZlaarkSubscriptionsFrontend {
         } else {
             return '<div class="trial-unavailable"><span class="unavailable-icon">🚫</span><span class="unavailable-text">' . __('Trial Not Available', 'zlaark-subscriptions') . '</span></div>';
         }
+
+        } catch (Exception $e) {
+            // Log the error and return a safe error message
+            error_log('Zlaark Subscriptions: Trial button shortcode error: ' . $e->getMessage());
+            return '<p class="error">' . __('Trial button temporarily unavailable. Please try again later.', 'zlaark-subscriptions') . '</p>';
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: Trial button PHP error: ' . $e->getMessage());
+            return '<p class="error">' . __('Trial button temporarily unavailable. Please try again later.', 'zlaark-subscriptions') . '</p>';
+        }
     }
 
     /**
@@ -986,13 +1003,15 @@ class ZlaarkSubscriptionsFrontend {
      * @return string
      */
     public function subscription_button_shortcode($atts) {
-        $atts = shortcode_atts(array(
-            'product_id' => '',
-            'text' => '',
-            'class' => 'subscription-button zlaark-subscription-btn',
-            'style' => '',
-            'redirect' => ''
-        ), $atts);
+        // Wrap everything in try-catch to prevent fatal errors
+        try {
+            $atts = shortcode_atts(array(
+                'product_id' => '',
+                'text' => '',
+                'class' => 'subscription-button zlaark-subscription-btn',
+                'style' => '',
+                'redirect' => ''
+            ), $atts);
 
         // Get product ID from current context if not provided
         if (empty($atts['product_id'])) {
@@ -1060,6 +1079,16 @@ class ZlaarkSubscriptionsFrontend {
         $html .= '</form>';
 
         return $html;
+
+        } catch (Exception $e) {
+            // Log the error and return a safe error message
+            error_log('Zlaark Subscriptions: Subscription button shortcode error: ' . $e->getMessage());
+            return '<p class="error">' . __('Subscription button temporarily unavailable. Please try again later.', 'zlaark-subscriptions') . '</p>';
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: Subscription button PHP error: ' . $e->getMessage());
+            return '<p class="error">' . __('Subscription button temporarily unavailable. Please try again later.', 'zlaark-subscriptions') . '</p>';
+        }
     }
 
     /**
