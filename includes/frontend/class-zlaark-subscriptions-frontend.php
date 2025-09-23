@@ -130,19 +130,30 @@ class ZlaarkSubscriptionsFrontend {
      * Display prominent trial highlight on single product page
      */
     public function display_trial_highlight() {
-        global $product;
+        // Wrap in try-catch to prevent fatal errors on product pages
+        try {
+            global $product;
 
-        if (!$product || $product->get_type() !== 'subscription') {
+            if (!$product || $product->get_type() !== 'subscription') {
+                return;
+            }
+
+            // Only show if product has a trial
+            if (!method_exists($product, 'has_trial') || !$product->has_trial()) {
+                return;
+            }
+
+            // Check if trial service is available
+            if (!class_exists('ZlaarkSubscriptionsTrialService')) {
+                return;
+            }
+        } catch (Exception $e) {
+            // Log error and return silently to avoid breaking the page
+            error_log('Zlaark Subscriptions: Error in display_trial_highlight: ' . $e->getMessage());
             return;
-        }
-
-        // Only show if product has a trial
-        if (!method_exists($product, 'has_trial') || !$product->has_trial()) {
-            return;
-        }
-
-        // Check if trial service is available
-        if (!class_exists('ZlaarkSubscriptionsTrialService')) {
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: PHP Error in display_trial_highlight: ' . $e->getMessage());
             return;
         }
 
@@ -255,20 +266,32 @@ class ZlaarkSubscriptionsFrontend {
      * Display comprehensive trial information after product price
      */
     public function display_comprehensive_trial_info() {
-        global $product;
+        // Wrap in try-catch to prevent fatal errors on product pages
+        try {
+            global $product;
 
-        if (!$product || $product->get_type() !== 'subscription') {
+            if (!$product || $product->get_type() !== 'subscription') {
+                return;
+            }
+
+            // Get trial service and subscription options
+            if (!class_exists('ZlaarkSubscriptionsTrialService')) {
+                return; // Exit if trial service is not available
+            }
+
+            // Use singleton pattern instead of new instance
+            $trial_service = ZlaarkSubscriptionsTrialService::instance();
+            $user_id = get_current_user_id();
+            $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);
+        } catch (Exception $e) {
+            // Log error and return silently to avoid breaking the page
+            error_log('Zlaark Subscriptions: Error in display_comprehensive_trial_info: ' . $e->getMessage());
+            return;
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: PHP Error in display_comprehensive_trial_info: ' . $e->getMessage());
             return;
         }
-
-        // Get trial service and subscription options
-        if (!class_exists('ZlaarkSubscriptionsTrialService')) {
-            return; // Exit if trial service is not available
-        }
-
-        $trial_service = new ZlaarkSubscriptionsTrialService();
-        $user_id = get_current_user_id();
-        $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);
 
         ?>
         <div class="subscription-trial-info-section">
@@ -1365,14 +1388,16 @@ class ZlaarkSubscriptionsFrontend {
      * Force add to cart button for subscription products if not already displayed
      */
     public function force_subscription_add_to_cart() {
-        global $product;
+        // Wrap in try-catch to prevent fatal errors on product pages
+        try {
+            global $product;
 
-        if (!$product || $product->get_type() !== 'subscription') {
-            return;
-        }
+            if (!$product || $product->get_type() !== 'subscription') {
+                return;
+            }
 
-        // Only add if the product is purchasable and no add to cart button was rendered
-        if ($product->is_purchasable() && $product->is_in_stock()) {
+            // Only add if the product is purchasable and no add to cart button was rendered
+            if ($product->is_purchasable() && $product->is_in_stock()) {
             // Check if WooCommerce's add to cart was already called
             if (!did_action('woocommerce_template_single_add_to_cart')) {
                 ?>
@@ -1474,20 +1499,41 @@ class ZlaarkSubscriptionsFrontend {
                 <?php
             }
         }
+
+        } catch (Exception $e) {
+            // Log error and return silently to avoid breaking the page
+            error_log('Zlaark Subscriptions: Error in force_subscription_add_to_cart: ' . $e->getMessage());
+            return;
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: PHP Error in force_subscription_add_to_cart: ' . $e->getMessage());
+            return;
+        }
     }
 
     /**
      * Debug add to cart status for subscription products
      */
     public function debug_add_to_cart_status() {
-        global $product;
+        // Wrap in try-catch to prevent fatal errors on product pages
+        try {
+            global $product;
 
-        if (!$product || $product->get_type() !== 'subscription') {
+            if (!$product || $product->get_type() !== 'subscription') {
+                return;
+            }
+
+            // Only show debug info if WP_DEBUG is enabled and user can manage options
+            if (!defined('WP_DEBUG') || !WP_DEBUG || !current_user_can('manage_options')) {
+                return;
+            }
+        } catch (Exception $e) {
+            // Log error and return silently to avoid breaking the page
+            error_log('Zlaark Subscriptions: Error in debug_add_to_cart_status: ' . $e->getMessage());
             return;
-        }
-
-        // Only show debug info if WP_DEBUG is enabled and user can manage options
-        if (!defined('WP_DEBUG') || !WP_DEBUG || !current_user_can('manage_options')) {
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: PHP Error in debug_add_to_cart_status: ' . $e->getMessage());
             return;
         }
 
