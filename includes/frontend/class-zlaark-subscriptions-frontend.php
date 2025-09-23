@@ -1061,7 +1061,7 @@ class ZlaarkSubscriptionsFrontend {
         $html .= $nonce_field;
         $html .= '</form>';
 
-        return $html;
+            return $html;
 
         } catch (Exception $e) {
             // Log the error and return a safe error message
