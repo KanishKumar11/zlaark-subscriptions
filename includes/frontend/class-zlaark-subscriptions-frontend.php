@@ -130,7 +130,7 @@ class ZlaarkSubscriptionsFrontend {
      * Display prominent trial highlight on single product page
      */
     public function display_trial_highlight() {
-        // Wrap in try-catch to prevent fatal errors on product pages
+        // Wrap entire method in try-catch to prevent fatal errors on product pages
         try {
             global $product;
 
@@ -147,15 +147,6 @@ class ZlaarkSubscriptionsFrontend {
             if (!class_exists('ZlaarkSubscriptionsTrialService')) {
                 return;
             }
-        } catch (Exception $e) {
-            // Log error and return silently to avoid breaking the page
-            error_log('Zlaark Subscriptions: Error in display_trial_highlight: ' . $e->getMessage());
-            return;
-        } catch (Error $e) {
-            // Handle PHP errors
-            error_log('Zlaark Subscriptions: PHP Error in display_trial_highlight: ' . $e->getMessage());
-            return;
-        }
 
         $trial_price = $product->get_trial_price();
         $trial_duration = $product->get_trial_duration();
@@ -260,13 +251,23 @@ class ZlaarkSubscriptionsFrontend {
         }
         </style>
         <?php
+
+        } catch (Exception $e) {
+            // Log error and return silently to avoid breaking the page
+            error_log('Zlaark Subscriptions: Error in display_trial_highlight: ' . $e->getMessage());
+            return;
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: PHP Error in display_trial_highlight: ' . $e->getMessage());
+            return;
+        }
     }
 
     /**
      * Display comprehensive trial information after product price
      */
     public function display_comprehensive_trial_info() {
-        // Wrap in try-catch to prevent fatal errors on product pages
+        // Wrap entire method in try-catch to prevent fatal errors on product pages
         try {
             global $product;
 
@@ -283,15 +284,6 @@ class ZlaarkSubscriptionsFrontend {
             $trial_service = ZlaarkSubscriptionsTrialService::instance();
             $user_id = get_current_user_id();
             $subscription_options = $trial_service->get_subscription_options($product->get_id(), $user_id);
-        } catch (Exception $e) {
-            // Log error and return silently to avoid breaking the page
-            error_log('Zlaark Subscriptions: Error in display_comprehensive_trial_info: ' . $e->getMessage());
-            return;
-        } catch (Error $e) {
-            // Handle PHP errors
-            error_log('Zlaark Subscriptions: PHP Error in display_comprehensive_trial_info: ' . $e->getMessage());
-            return;
-        }
 
         ?>
         <div class="subscription-trial-info-section">
@@ -485,17 +477,29 @@ class ZlaarkSubscriptionsFrontend {
         }
         </style>
         <?php
+
+        } catch (Exception $e) {
+            // Log error and return silently to avoid breaking the page
+            error_log('Zlaark Subscriptions: Error in display_comprehensive_trial_info: ' . $e->getMessage());
+            return;
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: PHP Error in display_comprehensive_trial_info: ' . $e->getMessage());
+            return;
+        }
     }
 
     /**
      * Display subscription info on product page
      */
     public function display_subscription_info() {
-        global $product;
-        
-        if (!$product || $product->get_type() !== 'subscription') {
-            return;
-        }
+        // Wrap entire method in try-catch to prevent fatal errors on product pages
+        try {
+            global $product;
+
+            if (!$product || $product->get_type() !== 'subscription') {
+                return;
+            }
         
         $trial_price = $product->get_trial_price();
         $trial_duration = $product->get_trial_duration();
@@ -565,6 +569,16 @@ class ZlaarkSubscriptionsFrontend {
             <?php endif; ?>
         </div>
         <?php
+
+        } catch (Exception $e) {
+            // Log error and return silently to avoid breaking the page
+            error_log('Zlaark Subscriptions: Error in display_subscription_info: ' . $e->getMessage());
+            return;
+        } catch (Error $e) {
+            // Handle PHP errors
+            error_log('Zlaark Subscriptions: PHP Error in display_subscription_info: ' . $e->getMessage());
+            return;
+        }
     }
     
     /**
