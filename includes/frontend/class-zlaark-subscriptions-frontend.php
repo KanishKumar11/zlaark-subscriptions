@@ -911,27 +911,10 @@ class ZlaarkSubscriptionsFrontend {
         }
 
         if (!$has_trial) {
-            // Add debug info for administrators
+            // Add debug info for administrators (HTML comment only to avoid layout issues)
             $debug_output = '';
             if (current_user_can('manage_options')) {
-                $debug_output = '<!-- Debug: ' . json_encode($debug_info) . ' -->';
-                // Also show visible debug for testing
-                $debug_output .= '<div style="background: #ffeeee; padding: 10px; margin: 10px 0; border: 1px solid #ff0000; font-size: 12px;">';
-                $debug_output .= '<strong>DEBUG (Admin Only):</strong><br>';
-                $debug_output .= 'Product ID: ' . $debug_info['product_id'] . '<br>';
-                $debug_output .= 'Product Class: ' . $debug_info['product_class'] . '<br>';
-                $debug_output .= 'Product Type: ' . $debug_info['product_type'] . '<br>';
-                $debug_output .= 'Has trial method: ' . ($debug_info['has_trial_method'] ? 'Yes' : 'No') . '<br>';
-                if (isset($debug_info['reloaded_class'])) {
-                    $debug_output .= 'Reloaded Class: ' . $debug_info['reloaded_class'] . '<br>';
-                    $debug_output .= 'Reloaded Has Trial Method: ' . ($debug_info['reloaded_has_trial_method'] ? 'Yes' : 'No') . '<br>';
-                }
-                if (isset($debug_info['has_trial_result'])) {
-                    $debug_output .= 'Has trial result: ' . ($debug_info['has_trial_result'] ? 'Yes' : 'No') . '<br>';
-                    $debug_output .= 'Trial duration: ' . (isset($debug_info['trial_duration']) ? $debug_info['trial_duration'] : 'N/A') . '<br>';
-                    $debug_output .= 'Trial price: ' . (isset($debug_info['trial_price']) ? $debug_info['trial_price'] : 'N/A') . '<br>';
-                }
-                $debug_output .= '</div>';
+                $debug_output = '<!-- Zlaark Debug Info: ' . json_encode($debug_info) . ' -->';
             }
             return '<p class="notice">' . __('This product does not offer a trial.', 'zlaark-subscriptions') . '</p>' . $debug_output;
         }

@@ -317,8 +317,11 @@
     margin: 0;
 }
 
-.trial-button,
-.regular-button {
+/* Scope button styles to subscription templates only to avoid layout conflicts */
+.subscription-purchase-options .trial-button,
+.subscription-purchase-options .regular-button,
+.zlaark-trial-form .trial-button,
+.zlaark-subscription-form .regular-button {
     width: 100% !important;
     padding: 18px 20px !important;
     font-size: 16px !important;
