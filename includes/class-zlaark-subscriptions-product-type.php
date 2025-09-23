@@ -405,30 +405,67 @@ class ZlaarkSubscriptionsProductType {
      */
     public function save_subscription_product_data($post_id) {
         $product = wc_get_product($post_id);
-        
+
         if (!$product || $product->get_type() !== 'subscription') {
             return;
         }
-        
-        // Save subscription fields
+
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Saving product data for ID ' . $post_id);
+            error_log('Zlaark Subscriptions: POST data: ' . print_r($_POST, true));
+        }
+
+        // Save subscription fields with proper type handling
         $fields = array(
-            '_subscription_trial_price',
-            '_subscription_trial_duration',
-            '_subscription_trial_period',
-            '_subscription_recurring_price',
-            '_subscription_billing_interval',
-            '_subscription_max_length',
-            '_subscription_signup_fee'
+            '_subscription_trial_price' => 'float',
+            '_subscription_trial_duration' => 'int',
+            '_subscription_trial_period' => 'string',
+            '_subscription_recurring_price' => 'float',
+            '_subscription_billing_interval' => 'string',
+            '_subscription_max_length' => 'int',
+            '_subscription_signup_fee' => 'float'
         );
-        
-        foreach ($fields as $field) {
+
+        foreach ($fields as $field => $type) {
             if (isset($_POST[$field])) {
-                $value = sanitize_text_field($_POST[$field]);
+                $raw_value = $_POST[$field];
+
+                // Handle different data types properly
+                switch ($type) {
+                    case 'float':
+                        $value = floatval($raw_value);
+                        break;
+                    case 'int':
+                        $value = intval($raw_value);
+                        break;
+                    case 'string':
+                    default:
+                        $value = sanitize_text_field($raw_value);
+                        break;
+                }
+
+                // Debug logging for trial duration specifically
+                if ($field === '_subscription_trial_duration' && defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Zlaark Subscriptions: Saving trial duration - Raw: '$raw_value', Processed: '$value', Type: " . gettype($value));
+                }
+
+                // Save using both methods to ensure it sticks
                 $product->update_meta_data($field, $value);
+                update_post_meta($post_id, $field, $value);
             }
         }
-        
+
         $product->save();
+
+        // Clear product cache to ensure fresh data
+        wp_cache_delete('wc_product_' . $post_id, 'products');
+
+        // Debug verification
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $saved_duration = get_post_meta($post_id, '_subscription_trial_duration', true);
+            error_log("Zlaark Subscriptions: Verification - Saved trial duration: '$saved_duration', Type: " . gettype($saved_duration));
+        }
     }
     
     /**

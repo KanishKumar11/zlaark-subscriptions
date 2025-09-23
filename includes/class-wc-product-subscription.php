@@ -83,7 +83,22 @@ class WC_Product_Subscription extends WC_Product {
      * @return float
      */
     public function get_trial_price($context = 'view') {
-        return (float) $this->get_meta('_subscription_trial_price', true, $context);
+        $price = $this->get_meta('_subscription_trial_price', true, $context);
+
+        // Handle different data types and ensure we get a float
+        if (is_numeric($price)) {
+            return (float) $price;
+        }
+
+        // Fallback: try direct meta query if product meta fails
+        if (empty($price) && $this->get_id()) {
+            $price = get_post_meta($this->get_id(), '_subscription_trial_price', true);
+            if (is_numeric($price)) {
+                return (float) $price;
+            }
+        }
+
+        return 0.0;
     }
     
     /**
@@ -102,7 +117,22 @@ class WC_Product_Subscription extends WC_Product {
      * @return int
      */
     public function get_trial_duration($context = 'view') {
-        return (int) $this->get_meta('_subscription_trial_duration', true, $context);
+        $duration = $this->get_meta('_subscription_trial_duration', true, $context);
+
+        // Handle different data types and ensure we get an integer
+        if (is_numeric($duration)) {
+            return (int) $duration;
+        }
+
+        // Fallback: try direct meta query if product meta fails
+        if (empty($duration) && $this->get_id()) {
+            $duration = get_post_meta($this->get_id(), '_subscription_trial_duration', true);
+            if (is_numeric($duration)) {
+                return (int) $duration;
+            }
+        }
+
+        return 0;
     }
     
     /**
