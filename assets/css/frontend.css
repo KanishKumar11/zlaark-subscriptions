@@ -367,6 +367,34 @@
     font-weight: 600;
 }
 
+/* Loading and Selected States */
+.trial-button.loading,
+.regular-button.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.trial-button.loading::after,
+.regular-button.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: subscription-spin 1s linear infinite;
+}
+
+.trial-button.selected,
+.regular-button.selected {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
 /* Trial Unavailable Styling */
 .trial-unavailable {
     display: flex;

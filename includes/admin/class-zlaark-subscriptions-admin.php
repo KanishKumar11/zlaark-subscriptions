@@ -463,14 +463,30 @@ class ZlaarkSubscriptionsAdmin {
         // Create manual subscription
         $db = ZlaarkSubscriptionsDatabase::instance();
         $product = wc_get_product($product_id);
-        
+
         if (!$product || $product->get_type() !== 'subscription') {
             add_action('admin_notices', function() {
                 echo '<div class="notice notice-error"><p>' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p></div>';
             });
             return;
         }
-        
+
+        // Check if this is a trial subscription and handle trial restrictions
+        if ($status === 'trial' && method_exists($product, 'has_trial') && $product->has_trial()) {
+            $trial_service = ZlaarkSubscriptionsTrialService::instance();
+            $trial_eligibility = $trial_service->check_trial_eligibility($user_id, $product_id, true);
+
+            if (!$trial_eligibility['eligible']) {
+                add_action('admin_notices', function() use ($trial_eligibility) {
+                    echo '<div class="notice notice-error"><p>' . sprintf(
+                        __('Cannot create trial subscription: %s', 'zlaark-subscriptions'),
+                        $trial_eligibility['message']
+                    ) . '</p></div>';
+                });
+                return;
+            }
+        }
+
         $subscription_data = array(
             'user_id' => $user_id,
             'product_id' => $product_id,
@@ -480,13 +496,28 @@ class ZlaarkSubscriptionsAdmin {
             'billing_interval' => $product->get_billing_interval(),
             'max_cycles' => $product->get_max_length(),
         );
-        
+
         $subscription_id = $db->create_subscription($subscription_data);
-        
+
         if ($subscription_id) {
-            add_action('admin_notices', function() {
-                echo '<div class="notice notice-success"><p>' . __('Subscription created successfully.', 'zlaark-subscriptions') . '</p></div>';
-            });
+            // If this is a trial subscription, record trial usage
+            if ($status === 'trial') {
+                $trial_history_id = $db->record_trial_usage($user_id, $product_id, $subscription_id);
+
+                if ($trial_history_id) {
+                    add_action('admin_notices', function() {
+                        echo '<div class="notice notice-success"><p>' . __('Trial subscription created successfully and trial usage recorded.', 'zlaark-subscriptions') . '</p></div>';
+                    });
+                } else {
+                    add_action('admin_notices', function() {
+                        echo '<div class="notice notice-warning"><p>' . __('Subscription created but failed to record trial usage. Please check manually.', 'zlaark-subscriptions') . '</p></div>';
+                    });
+                }
+            } else {
+                add_action('admin_notices', function() {
+                    echo '<div class="notice notice-success"><p>' . __('Subscription created successfully.', 'zlaark-subscriptions') . '</p></div>';
+                });
+            }
         } else {
             add_action('admin_notices', function() {
                 echo '<div class="notice notice-error"><p>' . __('Failed to create subscription.', 'zlaark-subscriptions') . '</p></div>';

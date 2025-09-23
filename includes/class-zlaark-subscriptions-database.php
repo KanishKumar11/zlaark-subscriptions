@@ -161,24 +161,36 @@ class ZlaarkSubscriptionsDatabase {
      * Get subscriptions by user ID
      *
      * @param int $user_id
-     * @param string $status Optional status filter
+     * @param string|int $status_or_product_id Optional status filter or product ID
+     * @param string $status Optional status filter when second param is product ID
      * @return array
      */
-    public function get_user_subscriptions($user_id, $status = '') {
+    public function get_user_subscriptions($user_id, $status_or_product_id = '', $status = '') {
         global $wpdb;
-        
+
         $table = $wpdb->prefix . 'zlaark_subscription_orders';
-        
+
         $sql = "SELECT * FROM $table WHERE user_id = %d";
         $params = array($user_id);
-        
-        if (!empty($status)) {
+
+        // Handle different parameter combinations
+        if (is_numeric($status_or_product_id)) {
+            // Second parameter is product_id
+            $sql .= " AND product_id = %d";
+            $params[] = intval($status_or_product_id);
+
+            if (!empty($status)) {
+                $sql .= " AND status = %s";
+                $params[] = $status;
+            }
+        } elseif (!empty($status_or_product_id)) {
+            // Second parameter is status
             $sql .= " AND status = %s";
-            $params[] = $status;
+            $params[] = $status_or_product_id;
         }
-        
+
         $sql .= " ORDER BY created_at DESC";
-        
+
         return $wpdb->get_results($wpdb->prepare($sql, $params));
     }
     
@@ -417,6 +429,12 @@ class ZlaarkSubscriptionsDatabase {
 
         $table = $wpdb->prefix . 'zlaark_subscription_trial_history';
 
+        // Race condition protection - double-check that trial hasn't already been recorded
+        if ($this->has_user_used_trial($user_id, $product_id)) {
+            error_log("Zlaark Subscriptions: Attempted to record duplicate trial usage - User: {$user_id}, Product: {$product_id}");
+            return false;
+        }
+
         $data = array(
             'user_id' => $user_id,
             'product_id' => $product_id,
@@ -428,7 +446,18 @@ class ZlaarkSubscriptionsDatabase {
 
         $result = $wpdb->insert($table, $data);
 
-        return $result ? $wpdb->insert_id : false;
+        if ($result) {
+            $trial_history_id = $wpdb->insert_id;
+
+            // Log successful trial recording
+            error_log("Zlaark Subscriptions: Trial usage recorded successfully - User: {$user_id}, Product: {$product_id}, Trial History ID: {$trial_history_id}");
+
+            return $trial_history_id;
+        } else {
+            // Log database error
+            error_log("Zlaark Subscriptions: Failed to record trial usage - User: {$user_id}, Product: {$product_id}, DB Error: " . $wpdb->last_error);
+            return false;
+        }
     }
 
     /**
@@ -463,17 +492,26 @@ class ZlaarkSubscriptionsDatabase {
      * Get trial history for user
      *
      * @param int $user_id
+     * @param int|null $product_id Optional product filter
      * @return array
      */
-    public function get_user_trial_history($user_id) {
+    public function get_user_trial_history($user_id, $product_id = null) {
         global $wpdb;
 
         $table = $wpdb->prefix . 'zlaark_subscription_trial_history';
 
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table WHERE user_id = %d ORDER BY created_at DESC",
-            $user_id
-        ));
+        if ($product_id) {
+            return $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM $table WHERE user_id = %d AND product_id = %d ORDER BY created_at DESC",
+                $user_id,
+                $product_id
+            ));
+        } else {
+            return $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM $table WHERE user_id = %d ORDER BY created_at DESC",
+                $user_id
+            ));
+        }
     }
 
     /**
@@ -492,4 +530,6 @@ class ZlaarkSubscriptionsDatabase {
             $product_id
         ));
     }
+
+
 }

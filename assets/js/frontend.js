@@ -2,44 +2,47 @@
  * Frontend JavaScript for Zlaark Subscriptions
  */
 
-(function($) {
+(function ($) {
     'use strict';
 
     var ZlaarkSubscriptionsFrontend = {
-        
-        init: function() {
+
+        init: function () {
             this.bindEvents();
             this.initSubscriptionActions();
             this.initRazorpayCheckout();
         },
-        
-        bindEvents: function() {
+
+        bindEvents: function () {
             // Subscription action handlers
             $(document).on('click', '.subscription-action', this.handleSubscriptionAction);
-            
-            // Subscription product add to cart validation
+
+            // Subscription product add to cart validation (legacy single button)
             $(document).on('click', '.single_add_to_cart_button', this.validateSubscriptionAddToCart);
-            
+
+            // Dual button system handlers
+            $(document).on('click', '.trial-button, .regular-button', this.handleDualButtonClick);
+
             // Content restriction handlers
             this.initContentRestriction();
         },
-        
-        initSubscriptionActions: function() {
+
+        initSubscriptionActions: function () {
             // Handle subscription management actions
-            $('.subscription-action').each(function() {
+            $('.subscription-action').each(function () {
                 var $this = $(this);
                 var action = $this.data('action');
-                
+
                 // Add confirmation for destructive actions
                 if (action === 'cancel') {
-                    $this.on('click', function(e) {
+                    $this.on('click', function (e) {
                         if (!confirm(zlaark_subscriptions_frontend.strings.confirm_cancel)) {
                             e.preventDefault();
                             return false;
                         }
                     });
                 } else if (action === 'pause') {
-                    $this.on('click', function(e) {
+                    $this.on('click', function (e) {
                         if (!confirm(zlaark_subscriptions_frontend.strings.confirm_pause)) {
                             e.preventDefault();
                             return false;
@@ -48,22 +51,22 @@
                 }
             });
         },
-        
-        handleSubscriptionAction: function(e) {
+
+        handleSubscriptionAction: function (e) {
             e.preventDefault();
-            
+
             var $this = $(this);
             var action = $this.data('action');
             var subscriptionId = $this.data('subscription-id');
-            
+
             if (!subscriptionId) {
                 alert('Invalid subscription ID.');
                 return;
             }
-            
+
             // Show loading state
             $this.addClass('subscription-loading').text(zlaark_subscriptions_frontend.strings.processing);
-            
+
             $.ajax({
                 url: zlaark_subscriptions_frontend.ajax_url,
                 type: 'POST',
@@ -72,13 +75,13 @@
                     subscription_id: subscriptionId,
                     nonce: zlaark_subscriptions_frontend.nonce
                 },
-                success: function(response) {
+                success: function (response) {
                     if (response.success) {
                         // Show success message
                         ZlaarkSubscriptionsFrontend.showNotice(response.data, 'success');
-                        
+
                         // Reload page after short delay
-                        setTimeout(function() {
+                        setTimeout(function () {
                             window.location.reload();
                         }, 1500);
                     } else {
@@ -86,17 +89,17 @@
                         $this.removeClass('subscription-loading').text($this.data('original-text') || action);
                     }
                 },
-                error: function() {
+                error: function () {
                     ZlaarkSubscriptionsFrontend.showNotice('An error occurred. Please try again.', 'error');
                     $this.removeClass('subscription-loading').text($this.data('original-text') || action);
                 }
             });
         },
-        
-        validateSubscriptionAddToCart: function(e) {
+
+        validateSubscriptionAddToCart: function (e) {
             var $form = $(this).closest('form.cart');
             var $productType = $form.find('input[name="product_type"]');
-            
+
             if ($productType.val() === 'subscription') {
                 // Check if user is logged in
                 if (!$('body').hasClass('logged-in')) {
@@ -104,38 +107,38 @@
                     alert('You must be logged in to purchase a subscription.');
                     return false;
                 }
-                
+
                 // Additional validation can be added here
             }
         },
-        
-        initRazorpayCheckout: function() {
+
+        initRazorpayCheckout: function () {
             // Initialize Razorpay checkout for subscription products
             if (typeof Razorpay !== 'undefined' && $('.woocommerce-checkout').length) {
                 this.setupRazorpayCheckout();
             }
         },
-        
-        setupRazorpayCheckout: function() {
+
+        setupRazorpayCheckout: function () {
             var self = this;
-            
+
             // Override WooCommerce checkout process for subscription products
-            $('body').on('checkout_place_order_zlaark_razorpay', function() {
+            $('body').on('checkout_place_order_zlaark_razorpay', function () {
                 return self.processRazorpayCheckout();
             });
         },
-        
-        processRazorpayCheckout: function() {
+
+        processRazorpayCheckout: function () {
             // Check if cart contains subscription products
             var hasSubscription = this.cartHasSubscription();
-            
+
             if (!hasSubscription) {
                 return true; // Proceed with normal checkout
             }
-            
+
             // Handle subscription checkout with Razorpay
             var checkoutData = this.getCheckoutData();
-            
+
             var options = {
                 key: zlaark_razorpay_params.key_id,
                 amount: checkoutData.amount,
@@ -143,7 +146,7 @@
                 name: checkoutData.name,
                 description: checkoutData.description,
                 order_id: checkoutData.order_id,
-                handler: function(response) {
+                handler: function (response) {
                     // Handle successful payment
                     ZlaarkSubscriptionsFrontend.handleRazorpaySuccess(response);
                 },
@@ -156,28 +159,28 @@
                     color: '#0073aa'
                 },
                 modal: {
-                    ondismiss: function() {
+                    ondismiss: function () {
                         ZlaarkSubscriptionsFrontend.handleRazorpayDismiss();
                     }
                 }
             };
-            
+
             var rzp = new Razorpay(options);
             rzp.open();
-            
+
             return false; // Prevent default form submission
         },
-        
-        cartHasSubscription: function() {
+
+        cartHasSubscription: function () {
             // Check if any cart item is a subscription
-            return $('.cart-subscription-item').length > 0 || 
-                   $('input[name="subscription_checkout"]').val() === '1';
+            return $('.cart-subscription-item').length > 0 ||
+                $('input[name="subscription_checkout"]').val() === '1';
         },
-        
-        getCheckoutData: function() {
+
+        getCheckoutData: function () {
             // Extract checkout data from form
             var $form = $('form.checkout');
-            
+
             return {
                 amount: $form.find('input[name="razorpay_amount"]').val() || 0,
                 currency: $form.find('input[name="razorpay_currency"]').val() || 'INR',
@@ -191,55 +194,55 @@
                 }
             };
         },
-        
-        handleRazorpaySuccess: function(response) {
+
+        handleRazorpaySuccess: function (response) {
             // Add payment details to form and submit
             var $form = $('form.checkout');
-            
+
             $('<input>').attr({
                 type: 'hidden',
                 name: 'razorpay_payment_id',
                 value: response.razorpay_payment_id
             }).appendTo($form);
-            
+
             $('<input>').attr({
                 type: 'hidden',
                 name: 'razorpay_order_id',
                 value: response.razorpay_order_id
             }).appendTo($form);
-            
+
             $('<input>').attr({
                 type: 'hidden',
                 name: 'razorpay_signature',
                 value: response.razorpay_signature
             }).appendTo($form);
-            
+
             // Submit form
             $form.off('submit').submit();
         },
-        
-        handleRazorpayDismiss: function() {
+
+        handleRazorpayDismiss: function () {
             // Handle payment modal dismissal
             this.showNotice('Payment was cancelled. Please try again.', 'error');
         },
-        
-        initContentRestriction: function() {
+
+        initContentRestriction: function () {
             // Handle content restriction for non-subscribers
-            $('.subscription-restriction').each(function() {
+            $('.subscription-restriction').each(function () {
                 var $this = $(this);
                 var $content = $this.next('.restricted-content');
-                
+
                 if ($content.length) {
                     $content.hide();
                 }
             });
         },
-        
-        showNotice: function(message, type) {
+
+        showNotice: function (message, type) {
             type = type || 'info';
-            
+
             var $notice = $('<div class="subscription-notice ' + type + '">' + message + '</div>');
-            
+
             // Find the best place to insert the notice
             var $target = $('.woocommerce-notices-wrapper').first();
             if (!$target.length) {
@@ -248,43 +251,65 @@
             if (!$target.length) {
                 $target = $('body');
             }
-            
+
             $target.prepend($notice);
-            
+
             // Auto-hide success notices
             if (type === 'success') {
-                setTimeout(function() {
-                    $notice.fadeOut(function() {
+                setTimeout(function () {
+                    $notice.fadeOut(function () {
                         $(this).remove();
                     });
                 }, 5000);
             }
-            
+
             // Scroll to notice
             $('html, body').animate({
                 scrollTop: $notice.offset().top - 100
             }, 500);
         },
-        
+
+        // Handle dual button system clicks
+        handleDualButtonClick: function (e) {
+            var $button = $(e.currentTarget);
+            var subscriptionType = $button.data('subscription-type');
+
+            // Set the subscription type in the hidden input
+            $('#subscription_type').val(subscriptionType);
+
+            // Add visual feedback
+            $('.trial-button, .regular-button').removeClass('selected');
+            $button.addClass('selected');
+
+            // Optional: Add loading state
+            $button.addClass('loading');
+
+            // The form submission will be handled by the default button behavior
+            // Remove loading state after a short delay if form submission fails
+            setTimeout(function () {
+                $button.removeClass('loading');
+            }, 3000);
+        },
+
         // Utility functions
-        formatPrice: function(amount, currency) {
+        formatPrice: function (amount, currency) {
             currency = currency || 'INR';
             var symbol = currency === 'INR' ? '₹' : currency;
             return symbol + parseFloat(amount).toFixed(2);
         },
-        
-        formatDate: function(dateString) {
+
+        formatDate: function (dateString) {
             var date = new Date(dateString);
             return date.toLocaleDateString();
         }
     };
-    
+
     // Initialize when document is ready
-    $(document).ready(function() {
+    $(document).ready(function () {
         ZlaarkSubscriptionsFrontend.init();
     });
-    
+
     // Make it globally available
     window.ZlaarkSubscriptionsFrontend = ZlaarkSubscriptionsFrontend;
-    
+
 })(jQuery);
