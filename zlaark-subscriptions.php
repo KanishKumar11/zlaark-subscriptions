@@ -104,6 +104,13 @@ final class ZlaarkSubscriptions {
 
         // Hook into WooCommerce
         add_action('woocommerce_loaded', array($this, 'woocommerce_loaded'));
+
+        // Debug initialization
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Plugin initialized successfully');
+            // Schedule health check after everything is loaded
+            add_action('wp_loaded', array($this, 'check_system_health'));
+        }
     }
     
     /**
@@ -177,33 +184,35 @@ final class ZlaarkSubscriptions {
             }
         }
 
-        // Admin includes
-        if (is_admin()) {
-            $admin_files = [
-                'includes/admin/class-zlaark-subscriptions-admin.php',
-                'includes/admin/class-zlaark-subscriptions-admin-list.php'
-            ];
+        // Admin includes - Always include admin files for proper initialization
+        // They will only initialize if is_admin() is true
+        $admin_files = [
+            'includes/admin/class-zlaark-subscriptions-admin.php',
+            'includes/admin/class-zlaark-subscriptions-admin-list.php'
+        ];
 
-            foreach ($admin_files as $file) {
-                $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
-                if (file_exists($file_path)) {
-                    require_once $file_path;
-                }
+        foreach ($admin_files as $file) {
+            $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            } else {
+                error_log("Zlaark Subscriptions: Missing admin file - $file_path");
             }
         }
 
-        // Frontend includes
-        if (!is_admin()) {
-            $frontend_files = [
-                'includes/frontend/class-zlaark-subscriptions-frontend.php',
-                'includes/frontend/class-zlaark-subscriptions-my-account.php'
-            ];
+        // Frontend includes - Always include for shortcodes and AJAX support
+        // They will handle their own context checking
+        $frontend_files = [
+            'includes/frontend/class-zlaark-subscriptions-frontend.php',
+            'includes/frontend/class-zlaark-subscriptions-my-account.php'
+        ];
 
-            foreach ($frontend_files as $file) {
-                $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
-                if (file_exists($file_path)) {
-                    require_once $file_path;
-                }
+        foreach ($frontend_files as $file) {
+            $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            } else {
+                error_log("Zlaark Subscriptions: Missing frontend file - $file_path");
             }
         }
 
@@ -268,18 +277,25 @@ final class ZlaarkSubscriptions {
         // Trial service will be initialized when WooCommerce is loaded
 
         // Initialize admin components
-        if (is_admin() && class_exists('ZlaarkSubscriptionsAdmin')) {
-            ZlaarkSubscriptionsAdmin::instance();
+        if (is_admin()) {
+            if (class_exists('ZlaarkSubscriptionsAdmin')) {
+                ZlaarkSubscriptionsAdmin::instance();
+            } else {
+                error_log('Zlaark Subscriptions: Admin class not found during initialization');
+            }
         }
 
-        // Initialize frontend components (always initialize for AJAX and frontend)
-        if (!is_admin() || wp_doing_ajax()) {
-            if (class_exists('ZlaarkSubscriptionsFrontend')) {
-                ZlaarkSubscriptionsFrontend::instance();
-            }
-            if (class_exists('ZlaarkSubscriptionsMyAccount')) {
-                ZlaarkSubscriptionsMyAccount::instance();
-            }
+        // Initialize frontend components (always initialize for shortcodes, AJAX, and frontend)
+        // Frontend class handles its own context checking
+        if (class_exists('ZlaarkSubscriptionsFrontend')) {
+            ZlaarkSubscriptionsFrontend::instance();
+        } else {
+            error_log('Zlaark Subscriptions: Frontend class not found during initialization');
+        }
+
+        // My Account only needs to initialize on frontend and AJAX
+        if ((!is_admin() || wp_doing_ajax()) && class_exists('ZlaarkSubscriptionsMyAccount')) {
+            ZlaarkSubscriptionsMyAccount::instance();
         }
     }
     
@@ -427,6 +443,52 @@ final class ZlaarkSubscriptions {
              '</strong> ' . 
              esc_html__('requires WooCommerce version 7.0 or higher.', 'zlaark-subscriptions') . 
              '</p></div>';
+    }
+
+    /**
+     * Check system health and log any issues
+     */
+    public function check_system_health() {
+        $issues = [];
+
+        // Check if classes are loaded
+        $required_classes = [
+            'ZlaarkSubscriptionsAdmin',
+            'ZlaarkSubscriptionsFrontend',
+            'WC_Product_Subscription',
+            'ZlaarkSubscriptionsDatabase'
+        ];
+
+        foreach ($required_classes as $class) {
+            if (!class_exists($class)) {
+                $issues[] = "Missing class: $class";
+            }
+        }
+
+        // Check if shortcodes are registered
+        global $shortcode_tags;
+        $required_shortcodes = ['zlaark_subscriptions_manage', 'zlaark_user_subscriptions', 'subscription_required'];
+
+        foreach ($required_shortcodes as $shortcode) {
+            if (!isset($shortcode_tags[$shortcode])) {
+                $issues[] = "Missing shortcode: $shortcode";
+            }
+        }
+
+        // Check if admin menu exists (only in admin)
+        if (is_admin()) {
+            global $submenu;
+            if (!isset($submenu['zlaark-subscriptions'])) {
+                $issues[] = "Admin menu not registered";
+            }
+        }
+
+        // Log issues
+        if (!empty($issues) && defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions Health Check Issues: ' . implode(', ', $issues));
+        }
+
+        return empty($issues);
     }
 }
 

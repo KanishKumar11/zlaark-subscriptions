@@ -85,19 +85,11 @@ class ZlaarkSubscriptionsProductType {
         add_filter('woocommerce_is_purchasable', array($this, 'subscription_is_purchasable'), 10, 2);
         add_filter('woocommerce_product_supports', array($this, 'subscription_product_supports'), 10, 3);
 
-        // Handle template loading for subscription products - multiple approaches
+        // Simplified template loading for subscription products
         add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
-        add_filter('woocommerce_locate_template', array($this, 'locate_subscription_template'), 10, 3);
 
-        // Primary template loading hook at standard WooCommerce priority
-        add_action('woocommerce_single_product_summary', array($this, 'load_subscription_template'), 30);
-
-        // Force template loading if WooCommerce doesn't load it automatically
-        add_action('woocommerce_single_product_summary', array($this, 'force_subscription_template_if_needed'), 31);
-
-        // Multiple fallback methods for add to cart button
-        add_action('woocommerce_single_product_summary', array($this, 'ensure_subscription_add_to_cart'), 32);
-        add_action('woocommerce_single_product_summary', array($this, 'emergency_add_to_cart_fallback'), 35);
+        // Primary template loading - replace WooCommerce's default add-to-cart
+        add_action('woocommerce_single_product_summary', array($this, 'load_subscription_add_to_cart'), 30);
     }
     
     /**
@@ -738,6 +730,33 @@ class ZlaarkSubscriptionsProductType {
         }
 
         return $template;
+    }
+
+    /**
+     * Load subscription add-to-cart template
+     */
+    public function load_subscription_add_to_cart() {
+        global $product;
+
+        // Only handle subscription products
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Remove WooCommerce's default add-to-cart to prevent conflicts
+        remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
+
+        // Load our subscription template
+        $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+
+        if (file_exists($template_path) && $product->is_purchasable()) {
+            include $template_path;
+
+            // Debug output
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                echo "<!-- Zlaark: Subscription template loaded -->";
+            }
+        }
     }
 
     /**

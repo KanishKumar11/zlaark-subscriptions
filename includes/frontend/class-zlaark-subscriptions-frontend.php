@@ -74,6 +74,7 @@ class ZlaarkSubscriptionsFrontend {
         // Add subscription shortcodes
         add_shortcode('zlaark_subscriptions_manage', array($this, 'subscription_management_shortcode'));
         add_shortcode('zlaark_user_subscriptions', array($this, 'user_subscriptions_shortcode'));
+        add_shortcode('subscription_required', array($this, 'subscription_required_shortcode'));
         
         // Handle subscription actions
         add_action('wp_ajax_zlaark_cancel_subscription', array($this, 'handle_cancel_subscription'));
@@ -767,7 +768,53 @@ class ZlaarkSubscriptionsFrontend {
         <?php
         return ob_get_clean();
     }
-    
+
+    /**
+     * Subscription required shortcode
+     *
+     * @param array $atts
+     * @param string $content
+     * @return string
+     */
+    public function subscription_required_shortcode($atts, $content = '') {
+        $atts = shortcode_atts(array(
+            'product_id' => '',
+            'message' => __('You need an active subscription to access this content.', 'zlaark-subscriptions')
+        ), $atts);
+
+        if (!is_user_logged_in()) {
+            return '<div class="subscription-restriction">' .
+                   __('Please log in to access this content.', 'zlaark-subscriptions') .
+                   '</div>';
+        }
+
+        $user_id = get_current_user_id();
+        $db = ZlaarkSubscriptionsDatabase::instance();
+        $subscriptions = $db->get_user_subscriptions($user_id, 'active');
+
+        // Check if user has required subscription
+        $has_access = false;
+
+        if (!empty($atts['product_id'])) {
+            $required_product_id = intval($atts['product_id']);
+            foreach ($subscriptions as $subscription) {
+                if ($subscription->product_id == $required_product_id) {
+                    $has_access = true;
+                    break;
+                }
+            }
+        } else {
+            // Any active subscription grants access
+            $has_access = !empty($subscriptions);
+        }
+
+        if ($has_access) {
+            return do_shortcode($content);
+        } else {
+            return '<div class="subscription-restriction">' . esc_html($atts['message']) . '</div>';
+        }
+    }
+
     /**
      * Get status label
      *
