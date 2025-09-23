@@ -11,22 +11,140 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Add admin menu for testing
+// Add admin menu for testing - multiple fallback approaches
 add_action('admin_menu', function() {
-    add_submenu_page(
-        'zlaark-subscriptions',
-        'Test Dual Button Display',
-        'Test Dual Buttons',
-        'manage_options',
-        'test-dual-button-display',
-        'zlaark_test_dual_button_display_page'
-    );
+    // Check if user has any admin capabilities
+    if (!current_user_can('read')) {
+        return; // User has no admin access at all
+    }
+
+    // Approach 1: Try to add under Zlaark Subscriptions if it exists and user has permission
+    global $menu, $submenu;
+    $parent_exists = false;
+
+    // Check if parent menu exists
+    if (isset($submenu['zlaark-subscriptions']) && current_user_can('manage_woocommerce')) {
+        add_submenu_page(
+            'zlaark-subscriptions',
+            'Test Dual Button Display',
+            'Test Dual Buttons',
+            'manage_woocommerce',
+            'test-dual-button-display',
+            'zlaark_test_dual_button_display_page'
+        );
+        $parent_exists = true;
+    }
+
+    // Approach 2: Add under Tools menu as fallback (always accessible)
+    if (!$parent_exists) {
+        add_submenu_page(
+            'tools.php',
+            'Zlaark Dual Button Test',
+            'Zlaark Button Test',
+            'read', // Minimal capability - all admin users have this
+            'test-dual-button-display',
+            'zlaark_test_dual_button_display_page'
+        );
+    }
+
+    // Approach 3: Emergency standalone menu if Tools doesn't work
+    if (!current_user_can('manage_options')) {
+        add_menu_page(
+            'Zlaark Button Test',
+            'Button Test',
+            'read',
+            'zlaark-button-test-emergency',
+            'zlaark_test_dual_button_display_page',
+            'dashicons-admin-tools',
+            99
+        );
+    }
+}, 25); // Even lower priority to ensure all parent menus are registered
+
+// Alternative access method via URL parameter (for debugging)
+add_action('admin_init', function() {
+    if (isset($_GET['zlaark_test_buttons']) && current_user_can('read')) {
+        // Bypass menu system entirely
+        add_action('admin_notices', function() {
+            echo '<div class="notice notice-info"><p><strong>Zlaark Button Test:</strong> Direct access mode activated. <a href="' . admin_url('tools.php?page=test-dual-button-display') . '">Use menu instead</a></p></div>';
+        });
+
+        // Hook into admin_head to render the test page
+        add_action('admin_head', function() {
+            if (isset($_GET['zlaark_test_buttons'])) {
+                echo '<style>body { margin-top: 50px; }</style>';
+            }
+        });
+
+        add_action('admin_footer', function() {
+            if (isset($_GET['zlaark_test_buttons'])) {
+                echo '<div style="position: fixed; top: 0; left: 0; right: 0; background: white; z-index: 9999; padding: 20px; border-bottom: 2px solid #0073aa;">';
+                zlaark_test_dual_button_display_page();
+                echo '</div>';
+            }
+        });
+    }
+});
+
+// Add shortcode for frontend access (for testing)
+add_shortcode('zlaark_button_test', function($atts) {
+    if (!current_user_can('read')) {
+        return '<p style="color: red;">Access denied. Please log in as an administrator.</p>';
+    }
+
+    ob_start();
+    ?>
+    <div style="background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 4px; margin: 20px 0;">
+        <h3>🧪 Zlaark Dual Button Test (Shortcode)</h3>
+        <p>This is the shortcode version of the test page. Use <code>[zlaark_button_test]</code> on any page or post.</p>
+        <p><strong>Admin Access Links:</strong></p>
+        <ul>
+            <li><a href="<?php echo admin_url('tools.php?page=test-dual-button-display'); ?>">Tools Menu Access</a></li>
+            <li><a href="<?php echo admin_url('admin.php?zlaark_test_buttons=1'); ?>">Direct Access</a></li>
+            <li><a href="<?php echo admin_url('admin.php?page=zlaark-menu-debug'); ?>">Menu Debug</a></li>
+        </ul>
+
+        <?php
+        // Include basic diagnostics
+        $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+        $css_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'assets/css/frontend.css';
+        $js_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'assets/js/frontend.js';
+        ?>
+
+        <h4>Quick Diagnostics:</h4>
+        <ul>
+            <li>Template file: <?php echo file_exists($template_path) ? '✅ Exists' : '❌ Missing'; ?></li>
+            <li>CSS file: <?php echo file_exists($css_path) ? '✅ Exists' : '❌ Missing'; ?></li>
+            <li>JS file: <?php echo file_exists($js_path) ? '✅ Exists' : '❌ Missing'; ?></li>
+            <li>Trial service: <?php echo class_exists('ZlaarkSubscriptionsTrialService') ? '✅ Available' : '❌ Missing'; ?></li>
+            <li>WooCommerce: <?php echo class_exists('WooCommerce') ? '✅ Active' : '❌ Inactive'; ?></li>
+        </ul>
+    </div>
+    <?php
+    return ob_get_clean();
 });
 
 function zlaark_test_dual_button_display_page() {
+    // Check user capabilities
+    if (!current_user_can('read')) {
+        wp_die(__('Sorry, you are not allowed to access this page.'));
+    }
+
     ?>
     <div class="wrap">
         <h1>🧪 Dual Button Display Test</h1>
+
+        <div style="background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">📍 Access Information</h3>
+            <p><strong>Current User:</strong> <?php echo wp_get_current_user()->display_name; ?> (ID: <?php echo get_current_user_id(); ?>)</p>
+            <p><strong>User Capabilities:</strong></p>
+            <ul style="margin: 10px 0;">
+                <li>read: <?php echo current_user_can('read') ? '✅ Yes' : '❌ No'; ?></li>
+                <li>manage_options: <?php echo current_user_can('manage_options') ? '✅ Yes' : '❌ No'; ?></li>
+                <li>manage_woocommerce: <?php echo current_user_can('manage_woocommerce') ? '✅ Yes' : '❌ No'; ?></li>
+            </ul>
+            <p><strong>Alternative Access:</strong> <a href="<?php echo admin_url('admin.php?zlaark_test_buttons=1'); ?>">Direct Access Mode</a></p>
+        </div>
         
         <div style="background: #fff; padding: 20px; margin: 20px 0; border: 1px solid #ccd0d4; border-radius: 4px;">
             <h2>Template Test</h2>

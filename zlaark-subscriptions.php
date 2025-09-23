@@ -212,7 +212,8 @@ final class ZlaarkSubscriptions {
             $test_files = [
                 'tests/test-plugin-structure.php',
                 'debug-dual-button-display.php',
-                'test-dual-button-display.php'
+                'test-dual-button-display.php',
+                'verify-menu-access.php'
             ];
 
             foreach ($test_files as $test_file) {
