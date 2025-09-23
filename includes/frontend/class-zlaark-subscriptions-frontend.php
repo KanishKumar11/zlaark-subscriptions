@@ -856,6 +856,11 @@ class ZlaarkSubscriptionsFrontend {
             }
         }
 
+        // Ensure product type is registered before loading product
+        if (class_exists('ZlaarkSubscriptionsProductType')) {
+            ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
+        }
+
         $product = wc_get_product($atts['product_id']);
         if (!$product || $product->get_type() !== 'subscription') {
             return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
@@ -865,6 +870,11 @@ class ZlaarkSubscriptionsFrontend {
         $has_trial = false;
         $debug_info = array();
 
+        // Add comprehensive debugging
+        $debug_info['product_class'] = get_class($product);
+        $debug_info['product_type'] = $product->get_type();
+        $debug_info['product_id'] = $product->get_id();
+
         if (method_exists($product, 'has_trial')) {
             $has_trial = $product->has_trial();
             $debug_info['has_trial_method'] = true;
@@ -873,6 +883,24 @@ class ZlaarkSubscriptionsFrontend {
             $debug_info['trial_price'] = method_exists($product, 'get_trial_price') ? $product->get_trial_price() : 'N/A';
         } else {
             $debug_info['has_trial_method'] = false;
+
+            // If the product doesn't have the method, try to reload it as the correct class
+            if ($product->get_type() === 'subscription') {
+                // Force reload the product to ensure it's the right class
+                wp_cache_delete('wc_product_' . $product->get_id(), 'products');
+                $reloaded_product = wc_get_product($product->get_id());
+
+                $debug_info['reloaded_class'] = get_class($reloaded_product);
+                $debug_info['reloaded_has_trial_method'] = method_exists($reloaded_product, 'has_trial');
+
+                if (method_exists($reloaded_product, 'has_trial')) {
+                    $product = $reloaded_product; // Use the reloaded product
+                    $has_trial = $product->has_trial();
+                    $debug_info['has_trial_result'] = $has_trial;
+                    $debug_info['trial_duration'] = $product->get_trial_duration();
+                    $debug_info['trial_price'] = $product->get_trial_price();
+                }
+            }
         }
 
         if (!$has_trial) {
@@ -880,6 +908,23 @@ class ZlaarkSubscriptionsFrontend {
             $debug_output = '';
             if (current_user_can('manage_options')) {
                 $debug_output = '<!-- Debug: ' . json_encode($debug_info) . ' -->';
+                // Also show visible debug for testing
+                $debug_output .= '<div style="background: #ffeeee; padding: 10px; margin: 10px 0; border: 1px solid #ff0000; font-size: 12px;">';
+                $debug_output .= '<strong>DEBUG (Admin Only):</strong><br>';
+                $debug_output .= 'Product ID: ' . $debug_info['product_id'] . '<br>';
+                $debug_output .= 'Product Class: ' . $debug_info['product_class'] . '<br>';
+                $debug_output .= 'Product Type: ' . $debug_info['product_type'] . '<br>';
+                $debug_output .= 'Has trial method: ' . ($debug_info['has_trial_method'] ? 'Yes' : 'No') . '<br>';
+                if (isset($debug_info['reloaded_class'])) {
+                    $debug_output .= 'Reloaded Class: ' . $debug_info['reloaded_class'] . '<br>';
+                    $debug_output .= 'Reloaded Has Trial Method: ' . ($debug_info['reloaded_has_trial_method'] ? 'Yes' : 'No') . '<br>';
+                }
+                if (isset($debug_info['has_trial_result'])) {
+                    $debug_output .= 'Has trial result: ' . ($debug_info['has_trial_result'] ? 'Yes' : 'No') . '<br>';
+                    $debug_output .= 'Trial duration: ' . (isset($debug_info['trial_duration']) ? $debug_info['trial_duration'] : 'N/A') . '<br>';
+                    $debug_output .= 'Trial price: ' . (isset($debug_info['trial_price']) ? $debug_info['trial_price'] : 'N/A') . '<br>';
+                }
+                $debug_output .= '</div>';
             }
             return '<p class="notice">' . __('This product does not offer a trial.', 'zlaark-subscriptions') . '</p>' . $debug_output;
         }
@@ -902,8 +947,11 @@ class ZlaarkSubscriptionsFrontend {
 
         // Generate button text
         if (empty($atts['text'])) {
-            if ($product->get_trial_price() > 0) {
-                $atts['text'] = sprintf(__('Start Trial - %s', 'zlaark-subscriptions'), wc_price($product->get_trial_price()));
+            $trial_price = $product->get_trial_price();
+            if ($trial_price > 0) {
+                // Use plain text price instead of HTML to avoid escaping issues
+                $price_text = get_woocommerce_currency_symbol() . number_format($trial_price, 2);
+                $atts['text'] = sprintf(__('Start Trial - %s', 'zlaark-subscriptions'), $price_text);
             } else {
                 $atts['text'] = __('Start FREE Trial', 'zlaark-subscriptions');
             }
@@ -968,6 +1016,11 @@ class ZlaarkSubscriptionsFrontend {
             }
         }
 
+        // Ensure product type is registered before loading product
+        if (class_exists('ZlaarkSubscriptionsProductType')) {
+            ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
+        }
+
         $product = wc_get_product($atts['product_id']);
         if (!$product || $product->get_type() !== 'subscription') {
             return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
@@ -983,9 +1036,11 @@ class ZlaarkSubscriptionsFrontend {
             $recurring_price = method_exists($product, 'get_recurring_price') ? $product->get_recurring_price() : 0;
             $billing_interval = method_exists($product, 'get_billing_interval') ? $product->get_billing_interval() : 'monthly';
 
+            // Use plain text price instead of HTML to avoid escaping issues
+            $price_text = get_woocommerce_currency_symbol() . number_format($recurring_price, 2);
             $atts['text'] = sprintf(
                 __('Start Subscription - %s %s', 'zlaark-subscriptions'),
-                wc_price($recurring_price),
+                $price_text,
                 $billing_interval
             );
         }
