@@ -209,10 +209,24 @@ final class ZlaarkSubscriptions {
 
         // Test files (only in development)
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            $test_file = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'tests/test-plugin-structure.php';
-            if (file_exists($test_file)) {
-                require_once $test_file;
+            $test_files = [
+                'tests/test-plugin-structure.php',
+                'debug-dual-button-display.php',
+                'test-dual-button-display.php'
+            ];
+
+            foreach ($test_files as $test_file) {
+                $test_file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $test_file;
+                if (file_exists($test_file_path)) {
+                    require_once $test_file_path;
+                }
             }
+        }
+
+        // Always include the dual button display fix
+        $fix_file = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'fix-dual-button-display.php';
+        if (file_exists($fix_file)) {
+            require_once $fix_file;
         }
     }
     

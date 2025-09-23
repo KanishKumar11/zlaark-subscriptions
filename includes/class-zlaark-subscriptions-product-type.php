@@ -85,14 +85,18 @@ class ZlaarkSubscriptionsProductType {
         add_filter('woocommerce_is_purchasable', array($this, 'subscription_is_purchasable'), 10, 2);
         add_filter('woocommerce_product_supports', array($this, 'subscription_product_supports'), 10, 3);
 
-        // Handle template loading for subscription products - simplified approach
+        // Handle template loading for subscription products - multiple approaches
         add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
+        add_filter('woocommerce_locate_template', array($this, 'locate_subscription_template'), 10, 3);
 
-        // Single template loading hook at standard WooCommerce priority
+        // Primary template loading hook at standard WooCommerce priority
         add_action('woocommerce_single_product_summary', array($this, 'load_subscription_template'), 30);
 
+        // Force template loading if WooCommerce doesn't load it automatically
+        add_action('woocommerce_single_product_summary', array($this, 'force_subscription_template_if_needed'), 31);
+
         // Multiple fallback methods for add to cart button
-        add_action('woocommerce_single_product_summary', array($this, 'ensure_subscription_add_to_cart'), 30);
+        add_action('woocommerce_single_product_summary', array($this, 'ensure_subscription_add_to_cart'), 32);
         add_action('woocommerce_single_product_summary', array($this, 'emergency_add_to_cart_fallback'), 35);
     }
     
@@ -875,6 +879,45 @@ class ZlaarkSubscriptionsProductType {
             echo esc_html__('Subscribe Now', 'zlaark-subscriptions');
             echo '</button>';
             echo '</form>';
+        }
+    }
+
+    /**
+     * Force subscription template loading if WooCommerce hasn't loaded it
+     */
+    public function force_subscription_template_if_needed() {
+        global $product;
+
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Check if any add-to-cart template has been loaded
+        if (did_action('woocommerce_template_single_add_to_cart')) {
+            return;
+        }
+
+        // Force load our template
+        if ($product->is_purchasable() && $product->is_in_stock()) {
+            $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
+
+            if (file_exists($template_path)) {
+                // Remove the default WooCommerce add-to-cart action to prevent conflicts
+                remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
+
+                // Load our template
+                include $template_path;
+
+                // Mark that we've loaded the template
+                do_action('woocommerce_template_single_add_to_cart');
+
+                // Debug output
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    echo "<!-- Zlaark Debug: Forced subscription template load -->";
+                }
+
+                return;
+            }
         }
     }
 

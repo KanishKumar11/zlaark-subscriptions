@@ -28,12 +28,18 @@ if ($product->is_in_stock()) :
     // Get trial service and check eligibility if trial exists
     if ($has_trial && class_exists('ZlaarkSubscriptionsTrialService')) {
         try {
-            $trial_service = new ZlaarkSubscriptionsTrialService();
+            $trial_service = ZlaarkSubscriptionsTrialService::instance();
             $trial_eligibility = $trial_service->check_trial_eligibility($user_id, $product->get_id());
             $trial_available = $trial_eligibility['eligible'];
         } catch (Exception $e) {
             $trial_available = false;
+            error_log('Zlaark Subscriptions: Trial service error in template - ' . $e->getMessage());
         }
+    }
+
+    // Debug output (remove in production)
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        echo "<!-- Zlaark Debug: Product ID {$product->get_id()}, Type: {$product->get_type()}, Has Trial: " . ($has_trial ? 'Yes' : 'No') . ", Trial Available: " . ($trial_available ? 'Yes' : 'No') . " -->";
     }
 
     ?>
