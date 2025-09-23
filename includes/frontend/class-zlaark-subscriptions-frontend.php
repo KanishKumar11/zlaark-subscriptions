@@ -75,6 +75,10 @@ class ZlaarkSubscriptionsFrontend {
         add_shortcode('zlaark_subscriptions_manage', array($this, 'subscription_management_shortcode'));
         add_shortcode('zlaark_user_subscriptions', array($this, 'user_subscriptions_shortcode'));
         add_shortcode('subscription_required', array($this, 'subscription_required_shortcode'));
+
+        // Add individual button shortcodes
+        add_shortcode('trial_button', array($this, 'trial_button_shortcode'));
+        add_shortcode('subscription_button', array($this, 'subscription_button_shortcode'));
         
         // Handle subscription actions
         add_action('wp_ajax_zlaark_cancel_subscription', array($this, 'handle_cancel_subscription'));
@@ -813,6 +817,163 @@ class ZlaarkSubscriptionsFrontend {
         } else {
             return '<div class="subscription-restriction">' . esc_html($atts['message']) . '</div>';
         }
+    }
+
+    /**
+     * Trial button shortcode
+     *
+     * @param array $atts
+     * @return string
+     */
+    public function trial_button_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'product_id' => '',
+            'text' => '',
+            'class' => 'trial-button zlaark-trial-btn',
+            'style' => '',
+            'redirect' => ''
+        ), $atts);
+
+        // Get product ID from current context if not provided
+        if (empty($atts['product_id'])) {
+            global $product;
+            if ($product && $product->get_type() === 'subscription') {
+                $atts['product_id'] = $product->get_id();
+            } else {
+                return '<p class="error">' . __('Product ID required for trial button.', 'zlaark-subscriptions') . '</p>';
+            }
+        }
+
+        $product = wc_get_product($atts['product_id']);
+        if (!$product || $product->get_type() !== 'subscription') {
+            return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
+        }
+
+        // Check if product has trial
+        $has_trial = method_exists($product, 'has_trial') && $product->has_trial();
+        if (!$has_trial) {
+            return '<p class="notice">' . __('This product does not offer a trial.', 'zlaark-subscriptions') . '</p>';
+        }
+
+        // Check trial eligibility
+        $user_id = get_current_user_id();
+        $trial_available = false;
+
+        if ($user_id && class_exists('ZlaarkSubscriptionsTrialService')) {
+            try {
+                $trial_service = ZlaarkSubscriptionsTrialService::instance();
+                $trial_eligibility = $trial_service->check_trial_eligibility($user_id, $product->get_id());
+                $trial_available = $trial_eligibility['eligible'];
+            } catch (Exception $e) {
+                $trial_available = false;
+            }
+        } elseif (!$user_id) {
+            $trial_available = true; // Allow for non-logged-in users (they'll need to login)
+        }
+
+        // Generate button text
+        if (empty($atts['text'])) {
+            if ($product->get_trial_price() > 0) {
+                $atts['text'] = sprintf(__('Start Trial - %s', 'zlaark-subscriptions'), wc_price($product->get_trial_price()));
+            } else {
+                $atts['text'] = __('Start FREE Trial', 'zlaark-subscriptions');
+            }
+        }
+
+        // Generate button HTML
+        if ($trial_available) {
+            $redirect_url = !empty($atts['redirect']) ? esc_url($atts['redirect']) : get_permalink($product->get_id());
+
+            return sprintf(
+                '<form method="post" action="%s" class="zlaark-trial-form">
+                    <input type="hidden" name="add-to-cart" value="%d">
+                    <input type="hidden" name="subscription_type" value="trial">
+                    <button type="submit" class="%s" style="%s" data-product-id="%d">
+                        <span class="button-icon">🎯</span>
+                        <span class="button-text">%s</span>
+                    </button>
+                    %s
+                </form>',
+                esc_url(wc_get_cart_url()),
+                $product->get_id(),
+                esc_attr($atts['class']),
+                esc_attr($atts['style']),
+                $product->get_id(),
+                esc_html($atts['text']),
+                wp_nonce_field('zlaark_trial_button', 'zlaark_trial_nonce', true, false)
+            );
+        } else {
+            return '<div class="trial-unavailable">
+                        <span class="unavailable-icon">🚫</span>
+                        <span class="unavailable-text">' . __('Trial Not Available', 'zlaark-subscriptions') . '</span>
+                    </div>';
+        }
+    }
+
+    /**
+     * Subscription button shortcode
+     *
+     * @param array $atts
+     * @return string
+     */
+    public function subscription_button_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'product_id' => '',
+            'text' => '',
+            'class' => 'subscription-button zlaark-subscription-btn',
+            'style' => '',
+            'redirect' => ''
+        ), $atts);
+
+        // Get product ID from current context if not provided
+        if (empty($atts['product_id'])) {
+            global $product;
+            if ($product && $product->get_type() === 'subscription') {
+                $atts['product_id'] = $product->get_id();
+            } else {
+                return '<p class="error">' . __('Product ID required for subscription button.', 'zlaark-subscriptions') . '</p>';
+            }
+        }
+
+        $product = wc_get_product($atts['product_id']);
+        if (!$product || $product->get_type() !== 'subscription') {
+            return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
+        }
+
+        // Check if product is purchasable
+        if (!$product->is_purchasable() || !$product->is_in_stock()) {
+            return '<p class="notice">' . __('This subscription is currently not available.', 'zlaark-subscriptions') . '</p>';
+        }
+
+        // Generate button text
+        if (empty($atts['text'])) {
+            $atts['text'] = sprintf(
+                __('Start Subscription - %s %s', 'zlaark-subscriptions'),
+                wc_price($product->get_recurring_price()),
+                $product->get_billing_interval()
+            );
+        }
+
+        $redirect_url = !empty($atts['redirect']) ? esc_url($atts['redirect']) : get_permalink($product->get_id());
+
+        return sprintf(
+            '<form method="post" action="%s" class="zlaark-subscription-form">
+                <input type="hidden" name="add-to-cart" value="%d">
+                <input type="hidden" name="subscription_type" value="regular">
+                <button type="submit" class="%s" style="%s" data-product-id="%d">
+                    <span class="button-icon">🚀</span>
+                    <span class="button-text">%s</span>
+                </button>
+                %s
+            </form>',
+            esc_url(wc_get_cart_url()),
+            $product->get_id(),
+            esc_attr($atts['class']),
+            esc_attr($atts['style']),
+            $product->get_id(),
+            esc_html($atts['text']),
+            wp_nonce_field('zlaark_subscription_button', 'zlaark_subscription_nonce', true, false)
+        );
     }
 
     /**

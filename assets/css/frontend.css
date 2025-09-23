@@ -923,3 +923,67 @@
         color: #000 !important;
     }
 }
+
+/* Shortcode Button Styles */
+.zlaark-trial-btn, .zlaark-subscription-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 10px 5px;
+    text-align: center;
+}
+
+.zlaark-trial-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.zlaark-trial-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.zlaark-subscription-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+}
+
+.zlaark-subscription-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.zlaark-trial-form, .zlaark-subscription-form {
+    display: inline-block;
+    margin: 0;
+}
+
+/* Button icons */
+.zlaark-trial-btn .button-icon,
+.zlaark-subscription-btn .button-icon {
+    font-size: 18px;
+}
+
+/* Responsive design for shortcode buttons */
+@media (max-width: 768px) {
+    .zlaark-trial-btn, .zlaark-subscription-btn {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+        text-align: center;
+    }
+}

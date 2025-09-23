@@ -23,6 +23,9 @@
             // Dual button system handlers
             $(document).on('click', '.trial-button, .regular-button', this.handleDualButtonClick);
 
+            // Shortcode button handlers
+            $(document).on('click', '.zlaark-trial-btn, .zlaark-subscription-btn', this.handleShortcodeButtonClick);
+
             // Content restriction handlers
             this.initContentRestriction();
         },
@@ -224,6 +227,26 @@
         handleRazorpayDismiss: function () {
             // Handle payment modal dismissal
             this.showNotice('Payment was cancelled. Please try again.', 'error');
+        },
+
+        handleShortcodeButtonClick: function (e) {
+            var $button = $(this);
+            var $form = $button.closest('form');
+
+            // Add loading state
+            $button.addClass('loading').prop('disabled', true);
+
+            // Add visual feedback
+            var originalText = $button.find('.button-text').text();
+            $button.find('.button-text').text('Processing...');
+
+            // Let the form submit naturally, but provide feedback
+            setTimeout(function () {
+                if ($button.hasClass('loading')) {
+                    $button.removeClass('loading').prop('disabled', false);
+                    $button.find('.button-text').text(originalText);
+                }
+            }, 3000);
         },
 
         initContentRestriction: function () {

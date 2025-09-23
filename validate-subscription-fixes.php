@@ -68,6 +68,8 @@ class ZlaarkSubscriptionFixValidator {
             'zlaark_subscriptions_manage',
             'zlaark_user_subscriptions',
             'subscription_required',
+            'trial_button',
+            'subscription_button',
             'zlaark_debug'
         ];
         

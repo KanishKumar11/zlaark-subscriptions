@@ -5,6 +5,7 @@ A comprehensive WooCommerce subscription plugin with paid trials and Razorpay in
 ## Features
 
 ### Core Functionality
+
 - **Custom Subscription Product Type**: Add subscription products with trial periods, recurring billing, and flexible pricing
 - **Razorpay Integration**: Seamless payment processing with support for cards, UPI, net banking, and wallets
 - **Trial Management**: Automated trial period handling with customizable duration and pricing
@@ -12,6 +13,7 @@ A comprehensive WooCommerce subscription plugin with paid trials and Razorpay in
 - **Payment Processing**: Automated recurring payments with retry logic for failed transactions
 
 ### Admin Features
+
 - **Comprehensive Dashboard**: Subscription overview with key metrics and analytics
 - **Subscription Management**: Full CRUD operations for subscriptions with bulk actions
 - **Payment History**: Detailed payment tracking and history for each subscription
@@ -20,6 +22,7 @@ A comprehensive WooCommerce subscription plugin with paid trials and Razorpay in
 - **Cron Jobs**: Automated background processing for trials, payments, and notifications
 
 ### Customer Features
+
 - **My Account Integration**: Dedicated subscription management in WooCommerce My Account
 - **Self-Service Options**: Pause, resume, and cancel subscriptions
 - **Payment History**: View complete payment history and upcoming payments
@@ -36,14 +39,17 @@ A comprehensive WooCommerce subscription plugin with paid trials and Razorpay in
 ## Installation
 
 1. **Download the Plugin**
+
    - Download the plugin ZIP file
    - Upload to your WordPress site via Admin > Plugins > Add New > Upload Plugin
 
 2. **Activate the Plugin**
+
    - Activate the plugin through the WordPress admin interface
    - The plugin will automatically create necessary database tables
 
 3. **Configure Razorpay**
+
    - Go to WooCommerce > Settings > Payments
    - Configure the Razorpay (Subscriptions) payment gateway
    - Add your Razorpay API keys (test/live)
@@ -68,6 +74,7 @@ Navigate to **Subscriptions > Settings** to configure:
 ### Razorpay Configuration
 
 1. **API Keys**
+
    - Get your API keys from Razorpay Dashboard
    - Configure test keys for development
    - Switch to live keys for production
@@ -81,10 +88,12 @@ Navigate to **Subscriptions > Settings** to configure:
 ## Creating Subscription Products
 
 1. **Add New Product**
+
    - Go to Products > Add New
    - Select "Subscription" as product type
 
 2. **Configure Subscription Settings**
+
    - **Trial Price**: Amount charged during trial (can be 0 for free trial)
    - **Trial Duration**: Length of trial period
    - **Recurring Price**: Amount charged for each billing cycle
@@ -102,6 +111,7 @@ Navigate to **Subscriptions > Settings** to configure:
 ### For Customers
 
 1. **Purchasing Subscriptions**
+
    - Browse subscription products
    - View trial and recurring pricing details
    - Complete purchase using Razorpay payment gateway
@@ -115,12 +125,14 @@ Navigate to **Subscriptions > Settings** to configure:
 ### For Administrators
 
 1. **Subscription Management**
+
    - View all subscriptions in admin dashboard
    - Filter by status, customer, or product
    - Perform bulk actions (cancel, pause, resume)
    - View detailed subscription information
 
 2. **Payment Monitoring**
+
    - Track payment history for each subscription
    - Monitor failed payments and retry attempts
    - View webhook logs for debugging
@@ -133,30 +145,69 @@ Navigate to **Subscriptions > Settings** to configure:
 ## Shortcodes
 
 ### `[zlaark_subscriptions_manage]`
+
 Display subscription management interface for logged-in users.
 
 ### `[zlaark_user_subscriptions]`
+
 Show user's subscriptions with optional parameters:
+
 - `status`: Filter by subscription status
 - `limit`: Limit number of subscriptions shown
 
 ### `[subscription_required]`
+
 Restrict content to active subscribers:
+
 ```
 [subscription_required product_id="123" message="Custom message"]
 Restricted content here
 [/subscription_required]
 ```
 
+### `[trial_button]`
+
+Display a trial button for a subscription product:
+
+```
+[trial_button product_id="123" text="Start Your Free Trial" class="custom-trial-btn" style="margin: 20px;"]
+```
+
+**Parameters:**
+
+- `product_id`: (optional) Subscription product ID. If not provided, uses current product context
+- `text`: (optional) Custom button text. If not provided, auto-generates based on trial price
+- `class`: (optional) Additional CSS classes for styling
+- `style`: (optional) Inline CSS styles
+- `redirect`: (optional) URL to redirect to after adding to cart
+
+### `[subscription_button]`
+
+Display a subscription button for a subscription product:
+
+```
+[subscription_button product_id="123" text="Subscribe Now" class="custom-sub-btn" style="margin: 20px;"]
+```
+
+**Parameters:**
+
+- `product_id`: (optional) Subscription product ID. If not provided, uses current product context
+- `text`: (optional) Custom button text. If not provided, auto-generates based on subscription price
+- `class`: (optional) Additional CSS classes for styling
+- `style`: (optional) Inline CSS styles
+- `redirect`: (optional) URL to redirect to after adding to cart
+
 ## Hooks and Filters
 
 ### Actions
+
 - `zlaark_subscription_created`: Fired when subscription is created
 - `zlaark_subscription_status_changed`: Fired when status changes
 - `zlaark_subscription_renewed`: Fired on successful renewal
 - `zlaark_subscription_payment_failed`: Fired on payment failure
 
 ### Filters
+
 - `zlaark_subscriptions_email_recipient`: Modify email recipient
 - `zlaark_subscriptions_email_subject`: Modify email subject
 - `zlaark_subscriptions_email_message`: Modify email content
@@ -166,11 +217,13 @@ Restricted content here
 ### Common Issues
 
 1. **Webhooks Not Working**
+
    - Verify webhook URL is accessible
    - Check webhook secret matches plugin settings
    - Review webhook logs in admin
 
 2. **Payment Failures**
+
    - Verify Razorpay API keys are correct
    - Check customer payment method validity
    - Review payment retry settings
@@ -183,6 +236,7 @@ Restricted content here
 ### Debug Mode
 
 Enable WordPress debug mode to see detailed error logs:
+
 ```php
 define('WP_DEBUG', true);
 define('WP_DEBUG_LOG', true);
@@ -191,6 +245,7 @@ define('WP_DEBUG_LOG', true);
 ## Support
 
 For support and documentation:
+
 - Check the plugin documentation
 - Review webhook and payment logs
 - Contact support with specific error messages
@@ -198,6 +253,7 @@ For support and documentation:
 ## Changelog
 
 ### Version 1.0.0
+
 - Initial release
 - Complete subscription management system
 - Razorpay payment integration
