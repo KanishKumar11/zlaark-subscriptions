@@ -836,10 +836,22 @@ class ZlaarkSubscriptionsFrontend {
 
         // Get product ID from current context if not provided
         if (empty($atts['product_id'])) {
-            global $product;
-            if ($product && $product->get_type() === 'subscription') {
+            global $product, $post;
+
+            // Try global $product first
+            if ($product && is_object($product) && method_exists($product, 'get_type') && $product->get_type() === 'subscription') {
                 $atts['product_id'] = $product->get_id();
-            } else {
+            }
+            // Fallback to current post if it's a product
+            elseif ($post && $post->post_type === 'product') {
+                $current_product = wc_get_product($post->ID);
+                if ($current_product && $current_product->get_type() === 'subscription') {
+                    $atts['product_id'] = $current_product->get_id();
+                }
+            }
+
+            // If still no product ID found
+            if (empty($atts['product_id'])) {
                 return '<p class="error">' . __('Product ID required for trial button.', 'zlaark-subscriptions') . '</p>';
             }
         }
@@ -849,10 +861,27 @@ class ZlaarkSubscriptionsFrontend {
             return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
         }
 
-        // Check if product has trial
-        $has_trial = method_exists($product, 'has_trial') && $product->has_trial();
+        // Check if product has trial with detailed debugging
+        $has_trial = false;
+        $debug_info = array();
+
+        if (method_exists($product, 'has_trial')) {
+            $has_trial = $product->has_trial();
+            $debug_info['has_trial_method'] = true;
+            $debug_info['has_trial_result'] = $has_trial;
+            $debug_info['trial_duration'] = method_exists($product, 'get_trial_duration') ? $product->get_trial_duration() : 'N/A';
+            $debug_info['trial_price'] = method_exists($product, 'get_trial_price') ? $product->get_trial_price() : 'N/A';
+        } else {
+            $debug_info['has_trial_method'] = false;
+        }
+
         if (!$has_trial) {
-            return '<p class="notice">' . __('This product does not offer a trial.', 'zlaark-subscriptions') . '</p>';
+            // Add debug info for administrators
+            $debug_output = '';
+            if (current_user_can('manage_options')) {
+                $debug_output = '<!-- Debug: ' . json_encode($debug_info) . ' -->';
+            }
+            return '<p class="notice">' . __('This product does not offer a trial.', 'zlaark-subscriptions') . '</p>' . $debug_output;
         }
 
         // Check trial eligibility
@@ -883,30 +912,22 @@ class ZlaarkSubscriptionsFrontend {
         // Generate button HTML
         if ($trial_available) {
             $redirect_url = !empty($atts['redirect']) ? esc_url($atts['redirect']) : get_permalink($product->get_id());
+            $nonce_field = wp_nonce_field('zlaark_trial_button', 'zlaark_trial_nonce', true, false);
 
-            return sprintf(
-                '<form method="post" action="%s" class="zlaark-trial-form">
-                    <input type="hidden" name="add-to-cart" value="%d">
-                    <input type="hidden" name="subscription_type" value="trial">
-                    <button type="submit" class="%s" style="%s" data-product-id="%d">
-                        <span class="button-icon">🎯</span>
-                        <span class="button-text">%s</span>
-                    </button>
-                    %s
-                </form>',
-                esc_url(wc_get_cart_url()),
-                $product->get_id(),
-                esc_attr($atts['class']),
-                esc_attr($atts['style']),
-                $product->get_id(),
-                esc_html($atts['text']),
-                wp_nonce_field('zlaark_trial_button', 'zlaark_trial_nonce', true, false)
-            );
+            // Build HTML as single line to avoid WordPress parsing issues
+            $html = '<form method="post" action="' . esc_url(wc_get_cart_url()) . '" class="zlaark-trial-form">';
+            $html .= '<input type="hidden" name="add-to-cart" value="' . esc_attr($product->get_id()) . '">';
+            $html .= '<input type="hidden" name="subscription_type" value="trial">';
+            $html .= '<button type="submit" class="' . esc_attr($atts['class']) . '" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
+            $html .= '<span class="button-icon">🎯</span>';
+            $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
+            $html .= '</button>';
+            $html .= $nonce_field;
+            $html .= '</form>';
+
+            return $html;
         } else {
-            return '<div class="trial-unavailable">
-                        <span class="unavailable-icon">🚫</span>
-                        <span class="unavailable-text">' . __('Trial Not Available', 'zlaark-subscriptions') . '</span>
-                    </div>';
+            return '<div class="trial-unavailable"><span class="unavailable-icon">🚫</span><span class="unavailable-text">' . __('Trial Not Available', 'zlaark-subscriptions') . '</span></div>';
         }
     }
 
@@ -927,10 +948,22 @@ class ZlaarkSubscriptionsFrontend {
 
         // Get product ID from current context if not provided
         if (empty($atts['product_id'])) {
-            global $product;
-            if ($product && $product->get_type() === 'subscription') {
+            global $product, $post;
+
+            // Try global $product first
+            if ($product && is_object($product) && method_exists($product, 'get_type') && $product->get_type() === 'subscription') {
                 $atts['product_id'] = $product->get_id();
-            } else {
+            }
+            // Fallback to current post if it's a product
+            elseif ($post && $post->post_type === 'product') {
+                $current_product = wc_get_product($post->ID);
+                if ($current_product && $current_product->get_type() === 'subscription') {
+                    $atts['product_id'] = $current_product->get_id();
+                }
+            }
+
+            // If still no product ID found
+            if (empty($atts['product_id'])) {
                 return '<p class="error">' . __('Product ID required for subscription button.', 'zlaark-subscriptions') . '</p>';
             }
         }
@@ -947,33 +980,31 @@ class ZlaarkSubscriptionsFrontend {
 
         // Generate button text
         if (empty($atts['text'])) {
+            $recurring_price = method_exists($product, 'get_recurring_price') ? $product->get_recurring_price() : 0;
+            $billing_interval = method_exists($product, 'get_billing_interval') ? $product->get_billing_interval() : 'monthly';
+
             $atts['text'] = sprintf(
                 __('Start Subscription - %s %s', 'zlaark-subscriptions'),
-                wc_price($product->get_recurring_price()),
-                $product->get_billing_interval()
+                wc_price($recurring_price),
+                $billing_interval
             );
         }
 
         $redirect_url = !empty($atts['redirect']) ? esc_url($atts['redirect']) : get_permalink($product->get_id());
+        $nonce_field = wp_nonce_field('zlaark_subscription_button', 'zlaark_subscription_nonce', true, false);
 
-        return sprintf(
-            '<form method="post" action="%s" class="zlaark-subscription-form">
-                <input type="hidden" name="add-to-cart" value="%d">
-                <input type="hidden" name="subscription_type" value="regular">
-                <button type="submit" class="%s" style="%s" data-product-id="%d">
-                    <span class="button-icon">🚀</span>
-                    <span class="button-text">%s</span>
-                </button>
-                %s
-            </form>',
-            esc_url(wc_get_cart_url()),
-            $product->get_id(),
-            esc_attr($atts['class']),
-            esc_attr($atts['style']),
-            $product->get_id(),
-            esc_html($atts['text']),
-            wp_nonce_field('zlaark_subscription_button', 'zlaark_subscription_nonce', true, false)
-        );
+        // Build HTML as single line to avoid WordPress parsing issues
+        $html = '<form method="post" action="' . esc_url(wc_get_cart_url()) . '" class="zlaark-subscription-form">';
+        $html .= '<input type="hidden" name="add-to-cart" value="' . esc_attr($product->get_id()) . '">';
+        $html .= '<input type="hidden" name="subscription_type" value="regular">';
+        $html .= '<button type="submit" class="' . esc_attr($atts['class']) . '" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
+        $html .= '<span class="button-icon">🚀</span>';
+        $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
+        $html .= '</button>';
+        $html .= $nonce_field;
+        $html .= '</form>';
+
+        return $html;
     }
 
     /**
