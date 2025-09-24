@@ -344,7 +344,7 @@ final class ZlaarkSubscriptions {
 
         // Initialize trial service after WooCommerce is loaded
         if (class_exists('ZlaarkSubscriptionsTrialService')) {
-            new ZlaarkSubscriptionsTrialService();
+            ZlaarkSubscriptionsTrialService::instance();
         }
 
         // Add payment gateway

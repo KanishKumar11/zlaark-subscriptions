@@ -11,18 +11,37 @@
 defined('ABSPATH') || exit;
 
 class ZlaarkSubscriptionsTrialService {
-    
+
+    /**
+     * Instance
+     *
+     * @var ZlaarkSubscriptionsTrialService
+     */
+    private static $instance = null;
+
     /**
      * Database instance
      *
      * @var ZlaarkSubscriptionsDatabase
      */
     private $db;
-    
+
+    /**
+     * Get instance
+     *
+     * @return ZlaarkSubscriptionsTrialService
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
     /**
      * Constructor
      */
-    public function __construct() {
+    private function __construct() {
         $this->db = ZlaarkSubscriptionsDatabase::instance();
         $this->init_hooks();
     }
