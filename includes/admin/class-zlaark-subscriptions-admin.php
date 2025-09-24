@@ -39,6 +39,17 @@ class ZlaarkSubscriptionsAdmin {
      */
     private function __construct() {
         $this->init_hooks();
+        $this->init_components();
+    }
+
+    /**
+     * Initialize components
+     */
+    private function init_components() {
+        // Initialize shortcode documentation
+        if (class_exists('ZlaarkSubscriptionsShortcodes')) {
+            ZlaarkSubscriptionsShortcodes::instance();
+        }
     }
     
     /**
@@ -60,9 +71,7 @@ class ZlaarkSubscriptionsAdmin {
         // Handle admin actions
         add_action('admin_init', array($this, 'handle_admin_actions'));
 
-        // Handle manual initialization actions
-        add_action('admin_post_zlaark_force_init', array($this, 'handle_force_initialization'));
-        add_action('admin_post_zlaark_clear_cache', array($this, 'handle_clear_cache'));
+
         
         // Add settings link to plugins page
         add_filter('plugin_action_links_' . ZLAARK_SUBSCRIPTIONS_PLUGIN_BASENAME, array($this, 'plugin_action_links'));
@@ -114,14 +123,7 @@ class ZlaarkSubscriptionsAdmin {
             array($this, 'settings_page')
         );
 
-        add_submenu_page(
-            'zlaark-subscriptions',
-            __('System Diagnostics', 'zlaark-subscriptions'),
-            __('Diagnostics', 'zlaark-subscriptions'),
-            'manage_options',
-            'zlaark-subscriptions-diagnostics',
-            array($this, 'diagnostics_page')
-        );
+
         
         add_submenu_page(
             'zlaark-subscriptions',
@@ -600,287 +602,13 @@ class ZlaarkSubscriptionsAdmin {
         ));
     }
 
-    /**
-     * Display diagnostics page
-     */
-    public function diagnostics_page() {
-        ?>
-        <div class="wrap">
-            <h1><?php _e('System Diagnostics', 'zlaark-subscriptions'); ?></h1>
 
-            <div class="notice notice-info">
-                <p><?php _e('Use this page to diagnose and fix subscription product initialization issues.', 'zlaark-subscriptions'); ?></p>
-            </div>
 
-            <!-- Manual Controls -->
-            <div class="card" style="max-width: none;">
-                <h2><?php _e('Manual Controls', 'zlaark-subscriptions'); ?></h2>
-                <p><?php _e('Use these buttons to manually force initialization or clear caches.', 'zlaark-subscriptions'); ?></p>
 
-                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block; margin-right: 10px;">
-                    <?php wp_nonce_field('zlaark_force_init', 'zlaark_nonce'); ?>
-                    <input type="hidden" name="action" value="zlaark_force_init">
-                    <button type="submit" class="button button-primary">🔄 Force Re-Initialize</button>
-                </form>
 
-                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block;">
-                    <?php wp_nonce_field('zlaark_clear_cache', 'zlaark_nonce'); ?>
-                    <input type="hidden" name="action" value="zlaark_clear_cache">
-                    <button type="submit" class="button">🗑️ Clear All Caches</button>
-                </form>
-            </div>
 
-            <!-- System Status -->
-            <div class="card" style="max-width: none;">
-                <h2><?php _e('System Status', 'zlaark-subscriptions'); ?></h2>
-                <?php $this->display_system_status(); ?>
-            </div>
 
-            <!-- Product Type Status -->
-            <div class="card" style="max-width: none;">
-                <h2><?php _e('Product Type Status', 'zlaark-subscriptions'); ?></h2>
-                <?php $this->display_product_type_status(); ?>
-            </div>
 
-            <!-- Subscription Products Test -->
-            <div class="card" style="max-width: none;">
-                <h2><?php _e('Subscription Products Test', 'zlaark-subscriptions'); ?></h2>
-                <?php $this->display_subscription_products_test(); ?>
-            </div>
-        </div>
-        <?php
-    }
 
-    /**
-     * Display system status
-     */
-    private function display_system_status() {
-        ?>
-        <table class="widefat">
-            <tbody>
-                <tr>
-                    <td><strong>WordPress Version</strong></td>
-                    <td><?php echo get_bloginfo('version'); ?></td>
-                </tr>
-                <tr>
-                    <td><strong>WooCommerce Version</strong></td>
-                    <td><?php echo class_exists('WooCommerce') ? WC()->version : '❌ Not Active'; ?></td>
-                </tr>
-                <tr>
-                    <td><strong>Plugin Version</strong></td>
-                    <td><?php echo defined('ZLAARK_SUBSCRIPTIONS_VERSION') ? ZLAARK_SUBSCRIPTIONS_VERSION : 'Unknown'; ?></td>
-                </tr>
-                <tr>
-                    <td><strong>PHP Version</strong></td>
-                    <td><?php echo PHP_VERSION; ?></td>
-                </tr>
-                <tr>
-                    <td><strong>Debug Mode</strong></td>
-                    <td><?php echo defined('WP_DEBUG') && WP_DEBUG ? '✅ Enabled' : '❌ Disabled'; ?></td>
-                </tr>
-                <tr>
-                    <td><strong>Object Cache</strong></td>
-                    <td><?php echo wp_using_ext_object_cache() ? '✅ Active' : '❌ Not Active'; ?></td>
-                </tr>
-            </tbody>
-        </table>
-        <?php
-    }
 
-    /**
-     * Display product type status
-     */
-    private function display_product_type_status() {
-        $product_types = wc_get_product_types();
-        $subscription_registered = isset($product_types['subscription']);
-
-        // Get detailed debug status
-        $debug_status = array();
-        if (class_exists('ZlaarkSubscriptionsProductType')) {
-            $debug_status = ZlaarkSubscriptionsProductType::debug_registration_status();
-        }
-
-        ?>
-        <table class="widefat">
-            <tbody>
-                <tr>
-                    <td><strong>Subscription Type Registered</strong></td>
-                    <td><?php echo $subscription_registered ? '✅ Yes' : '❌ No'; ?></td>
-                </tr>
-                <tr>
-                    <td><strong>Product Class Available</strong></td>
-                    <td><?php echo class_exists('WC_Product_Subscription') ? '✅ Yes' : '❌ No'; ?></td>
-                </tr>
-                <tr>
-                    <td><strong>Template File Exists</strong></td>
-                    <td>
-                        <?php
-                        $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
-                        echo file_exists($template_path) ? '✅ Yes' : '❌ No';
-                        ?>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>All Product Types</strong></td>
-                    <td><?php echo implode(', ', array_keys($product_types)); ?></td>
-                </tr>
-                <tr>
-                    <td><strong>Filter Callbacks</strong></td>
-                    <td>
-                        <?php
-                        $hooks = [
-                            'product_type_selector' => count($GLOBALS['wp_filter']['product_type_selector']->callbacks ?? []),
-                            'woocommerce_product_class' => count($GLOBALS['wp_filter']['woocommerce_product_class']->callbacks ?? [])
-                        ];
-
-                        foreach ($hooks as $hook => $count) {
-                            $status = $count > 0 ? '✅' : '❌';
-                            echo "<strong>$hook:</strong> $status $count callbacks<br>";
-                        }
-                        ?>
-                    </td>
-                </tr>
-                <?php if (!empty($debug_status)): ?>
-                <tr>
-                    <td><strong>Debug Status</strong></td>
-                    <td>
-                        <strong>WC Active:</strong> <?php echo $debug_status['woocommerce_active'] ? '✅' : '❌'; ?><br>
-                        <strong>wc_get_product_types exists:</strong> <?php echo $debug_status['product_types_function_exists'] ? '✅' : '❌'; ?><br>
-                        <strong>Subscription in types:</strong> <?php echo $debug_status['subscription_in_types'] ? '✅' : '❌'; ?><br>
-                    </td>
-                </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-
-        <?php if (!$subscription_registered): ?>
-        <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin: 10px 0;">
-            <strong>⚠️ Product Type Not Registered</strong><br>
-            The subscription product type is not appearing in WooCommerce's product types. This could be due to:
-            <ul>
-                <li>Plugin loading order issues</li>
-                <li>WooCommerce not being fully loaded when registration occurs</li>
-                <li>Caching issues</li>
-                <li>Filter hooks not being called at the right time</li>
-            </ul>
-            Try using the "Force Re-Initialize" button above to fix this issue.
-        </div>
-        <?php endif; ?>
-        <?php
-    }
-
-    /**
-     * Display subscription products test
-     */
-    private function display_subscription_products_test() {
-        $subscription_products = wc_get_products([
-            'type' => 'subscription',
-            'limit' => 5,
-            'status' => 'publish'
-        ]);
-
-        if (empty($subscription_products)) {
-            echo '<p>❌ No subscription products found. <a href="' . admin_url('post-new.php?post_type=product') . '">Create one</a> to test.</p>';
-            return;
-        }
-
-        echo '<p>✅ Found ' . count($subscription_products) . ' subscription product(s):</p>';
-
-        foreach ($subscription_products as $product) {
-            ?>
-            <div style="border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 4px;">
-                <h4><?php echo $product->get_name(); ?> (ID: <?php echo $product->get_id(); ?>)</h4>
-
-                <table class="widefat" style="margin-top: 10px;">
-                    <tbody>
-                        <tr>
-                            <td><strong>Type</strong></td>
-                            <td><?php echo $product->get_type(); ?></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Class</strong></td>
-                            <td><?php echo get_class($product); ?></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Is Purchasable</strong></td>
-                            <td><?php echo method_exists($product, 'is_purchasable') && $product->is_purchasable() ? '✅ Yes' : '❌ No'; ?></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Is In Stock</strong></td>
-                            <td><?php echo method_exists($product, 'is_in_stock') && $product->is_in_stock() ? '✅ Yes' : '❌ No'; ?></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Has Price Method</strong></td>
-                            <td><?php echo method_exists($product, 'get_price') ? '✅ Yes' : '❌ No'; ?></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Product URL</strong></td>
-                            <td><a href="<?php echo $product->get_permalink(); ?>" target="_blank">View Product</a></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <?php
-        }
-    }
-
-    /**
-     * Handle force initialization
-     */
-    public function handle_force_initialization() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['zlaark_nonce'], 'zlaark_force_init')) {
-            wp_die('Unauthorized');
-        }
-
-        // Force re-initialization
-        delete_transient('zlaark_subscriptions_init_status');
-
-        // Clear WooCommerce product type cache
-        wp_cache_delete('wc_product_types', 'woocommerce');
-        delete_transient('wc_product_types');
-
-        // Force product type registration with diagnostics
-        $registration_result = ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
-
-        // Also try the regular method
-        if (class_exists('ZlaarkSubscriptionsProductType')) {
-            ZlaarkSubscriptionsProductType::instance()->register_product_type_now();
-        }
-
-        // Clear any object cache
-        if (function_exists('wp_cache_flush')) {
-            wp_cache_flush();
-        }
-
-        // Add result to redirect
-        $message = $registration_result ? 'force_init_success' : 'force_init_partial';
-        wp_redirect(add_query_arg(['page' => 'zlaark-subscriptions-diagnostics', 'message' => $message], admin_url('admin.php')));
-        exit;
-    }
-
-    /**
-     * Handle clear cache
-     */
-    public function handle_clear_cache() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['zlaark_nonce'], 'zlaark_clear_cache')) {
-            wp_die('Unauthorized');
-        }
-
-        // Clear all caches
-        if (function_exists('wp_cache_flush')) {
-            wp_cache_flush();
-        }
-
-        // Clear transients
-        delete_transient('zlaark_subscriptions_init_status');
-        delete_transient('wc_product_types');
-
-        // Clear opcache if available
-        if (function_exists('opcache_reset')) {
-            opcache_reset();
-        }
-
-        wp_redirect(add_query_arg(['page' => 'zlaark-subscriptions-diagnostics', 'message' => 'cache_cleared'], admin_url('admin.php')));
-        exit;
-    }
 }

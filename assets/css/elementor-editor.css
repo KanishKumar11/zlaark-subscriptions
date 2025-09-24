@@ -1,0 +1,366 @@
+/**
+ * Elementor Editor Styles for Zlaark Subscriptions
+ */
+
+/* Widget Icons */
+.elementor-element .icon .eicon-button:before {
+    content: "\e8d8";
+}
+
+.elementor-element .icon .eicon-price-table:before {
+    content: "\e92e";
+}
+
+.elementor-element .icon .eicon-check-circle:before {
+    content: "\e90c";
+}
+
+.elementor-element .icon .eicon-user-circle-o:before {
+    content: "\e971";
+}
+
+.elementor-element .icon .eicon-info-circle:before {
+    content: "\e91f";
+}
+
+/* Widget Category Styling */
+.elementor-panel .elementor-panel-category-title[data-category="zlaark-subscriptions"] {
+    background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.elementor-panel .elementor-panel-category-title[data-category="zlaark-subscriptions"]:before {
+    content: "\e8d8";
+    font-family: eicons;
+    margin-right: 8px;
+}
+
+/* Widget Preview Placeholders */
+.zlaark-widget-container {
+    position: relative;
+    min-height: 50px;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.elementor-widget-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    gap: 10px;
+}
+
+.elementor-widget-placeholder i {
+    font-size: 32px;
+    color: #007cba;
+    opacity: 0.7;
+}
+
+.elementor-widget-placeholder-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+    margin: 0;
+}
+
+/* Specific Widget Placeholders */
+.elementor-widget-zlaark-trial-button .elementor-widget-placeholder i:before {
+    content: "\e8d8";
+    color: #007cba;
+}
+
+.elementor-widget-zlaark-subscription-button .elementor-widget-placeholder i:before {
+    content: "\e8d8";
+    color: #28a745;
+}
+
+.elementor-widget-zlaark-subscription-pricing .elementor-widget-placeholder i:before {
+    content: "\e92e";
+    color: #17a2b8;
+}
+
+.elementor-widget-zlaark-trial-eligibility .elementor-widget-placeholder i:before {
+    content: "\e90c";
+    color: #28a745;
+}
+
+.elementor-widget-zlaark-user-subscription-status .elementor-widget-placeholder i:before {
+    content: "\e971";
+    color: #6f42c1;
+}
+
+.elementor-widget-zlaark-subscription-details .elementor-widget-placeholder i:before {
+    content: "\e91f";
+    color: #fd7e14;
+}
+
+/* Control Styling */
+.elementor-control-zlaark_product_id .elementor-control-title:before {
+    content: "\e8c9";
+    font-family: eicons;
+    margin-right: 5px;
+    color: #007cba;
+}
+
+.elementor-control-button_text .elementor-control-title:before,
+.elementor-control-custom_title .elementor-control-title:before {
+    content: "\e8e4";
+    font-family: eicons;
+    margin-right: 5px;
+    color: #495057;
+}
+
+.elementor-control-redirect_url .elementor-control-title:before {
+    content: "\e90f";
+    font-family: eicons;
+    margin-right: 5px;
+    color: #17a2b8;
+}
+
+/* Section Headers */
+.elementor-control-type-section .elementor-panel-heading-title {
+    position: relative;
+}
+
+.elementor-control-content_section .elementor-panel-heading-title:before {
+    content: "\e91c";
+    font-family: eicons;
+    margin-right: 8px;
+    color: #007cba;
+}
+
+.elementor-control-style_section .elementor-panel-heading-title:before,
+.elementor-control-button_style_section .elementor-panel-heading-title:before,
+.elementor-control-pricing_style_section .elementor-panel-heading-title:before {
+    content: "\e8e6";
+    font-family: eicons;
+    margin-right: 8px;
+    color: #6f42c1;
+}
+
+/* Enhanced Control Groups */
+.elementor-control-type-switcher .elementor-switch {
+    background: #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.elementor-control-type-switcher .elementor-switch.elementor-switch-on {
+    background: #007cba;
+}
+
+.elementor-control-type-color .elementor-color-picker-alpha {
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Widget Panel Styling */
+.elementor-panel .elementor-element[data-widget_type*="zlaark-"] {
+    border-left: 3px solid #007cba;
+}
+
+.elementor-panel .elementor-element[data-widget_type*="zlaark-"] .elementor-element-title-wrapper {
+    background: rgba(0, 124, 186, 0.05);
+}
+
+/* Responsive Indicators */
+.elementor-control-responsive-switchers .elementor-responsive-switcher {
+    color: #007cba;
+}
+
+.elementor-control-responsive-switchers .elementor-responsive-switcher.elementor-responsive-switcher-active {
+    background: #007cba;
+    color: white;
+}
+
+/* Help Text Styling */
+.elementor-control-field-description {
+    background: #f8f9fa;
+    border-left: 3px solid #007cba;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-radius: 0 4px 4px 0;
+    font-size: 12px;
+    color: #495057;
+}
+
+/* Widget Search Enhancement */
+.elementor-panel-elements-search-input:focus {
+    border-color: #007cba;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.2);
+}
+
+/* Widget Drag Preview */
+.elementor-element.ui-sortable-helper[data-widget_type*="zlaark-"] {
+    border: 2px solid #007cba;
+    background: rgba(0, 124, 186, 0.1);
+}
+
+/* Loading States */
+.zlaark-widget-loading {
+    position: relative;
+    opacity: 0.6;
+}
+
+.zlaark-widget-loading:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #007cba;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: zlaark-spin 1s linear infinite;
+}
+
+@keyframes zlaark-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error States */
+.zlaark-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.zlaark-error:before {
+    content: "\e8ac";
+    font-family: eicons;
+    margin-right: 8px;
+}
+
+/* Success States */
+.zlaark-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.zlaark-success:before {
+    content: "\e90c";
+    font-family: eicons;
+    margin-right: 8px;
+}
+
+/* Widget Preview Enhancements */
+.elementor-editor-active .zlaark-trial-btn,
+.elementor-editor-active .zlaark-subscription-btn {
+    pointer-events: none;
+    cursor: default;
+    position: relative;
+}
+
+.elementor-editor-active .zlaark-trial-btn:after,
+.elementor-editor-active .zlaark-subscription-btn:after {
+    content: "Preview Mode";
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.elementor-editor-active .zlaark-trial-btn:hover:after,
+.elementor-editor-active .zlaark-subscription-btn:hover:after {
+    opacity: 1;
+}
+
+/* Dark Mode Support */
+.elementor-panel.elementor-panel-theme-dark .zlaark-widget-container {
+    background: #2c2c2c;
+    border-color: #555;
+    color: #ccc;
+}
+
+.elementor-panel.elementor-panel-theme-dark .elementor-widget-placeholder i {
+    color: #007cba;
+}
+
+.elementor-panel.elementor-panel-theme-dark .elementor-control-field-description {
+    background: #2c2c2c;
+    color: #ccc;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .elementor-widget-placeholder {
+        min-height: 60px;
+    }
+    
+    .elementor-widget-placeholder i {
+        font-size: 24px;
+    }
+    
+    .elementor-widget-placeholder-title {
+        font-size: 12px;
+    }
+}
+
+/* Animation for Widget Insertion */
+@keyframes zlaark-widget-insert {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.elementor-widget[data-widget_type*="zlaark-"].elementor-widget-edit-mode {
+    animation: zlaark-widget-insert 0.3s ease-out;
+}
+
+/* Widget Category Icon */
+.elementor-panel-category-items .elementor-element[data-widget_type*="zlaark-"] .icon {
+    background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+    color: white;
+}
+
+/* Improved Typography Controls */
+.elementor-control-type-font .elementor-control-input-wrapper {
+    position: relative;
+}
+
+.elementor-control-type-font .elementor-control-input-wrapper:before {
+    content: "\e8e4";
+    font-family: eicons;
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #007cba;
+    z-index: 1;
+}
+
+.elementor-control-type-font .elementor-control-tag {
+    padding-left: 35px;
+}

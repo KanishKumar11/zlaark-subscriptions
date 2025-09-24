@@ -188,7 +188,8 @@ final class ZlaarkSubscriptions {
         // They will only initialize if is_admin() is true
         $admin_files = [
             'includes/admin/class-zlaark-subscriptions-admin.php',
-            'includes/admin/class-zlaark-subscriptions-admin-list.php'
+            'includes/admin/class-zlaark-subscriptions-admin-list.php',
+            'includes/admin/class-zlaark-subscriptions-shortcodes.php'
         ];
 
         foreach ($admin_files as $file) {
@@ -206,6 +207,22 @@ final class ZlaarkSubscriptions {
             'includes/frontend/class-zlaark-subscriptions-frontend.php',
             'includes/frontend/class-zlaark-subscriptions-my-account.php'
         ];
+
+        // Elementor includes - Include if Elementor is active
+        if (did_action('elementor/loaded')) {
+            $elementor_files = [
+                'includes/elementor/class-zlaark-subscriptions-elementor.php'
+            ];
+
+            foreach ($elementor_files as $file) {
+                $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
+                if (file_exists($file_path)) {
+                    require_once $file_path;
+                } else {
+                    error_log("Zlaark Subscriptions: Missing Elementor file - $file_path");
+                }
+            }
+        }
 
         foreach ($frontend_files as $file) {
             $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
@@ -296,6 +313,11 @@ final class ZlaarkSubscriptions {
         // My Account only needs to initialize on frontend and AJAX
         if ((!is_admin() || wp_doing_ajax()) && class_exists('ZlaarkSubscriptionsMyAccount')) {
             ZlaarkSubscriptionsMyAccount::instance();
+        }
+
+        // Initialize Elementor integration if Elementor is active
+        if (class_exists('ZlaarkSubscriptionsElementor')) {
+            ZlaarkSubscriptionsElementor::instance();
         }
     }
     
