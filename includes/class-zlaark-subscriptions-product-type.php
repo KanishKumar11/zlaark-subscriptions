@@ -85,10 +85,8 @@ class ZlaarkSubscriptionsProductType {
         add_filter('woocommerce_is_purchasable', array($this, 'subscription_is_purchasable'), 10, 2);
         add_filter('woocommerce_product_supports', array($this, 'subscription_product_supports'), 10, 3);
 
-        // Simplified template loading for subscription products
-        add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
-
         // Primary template loading - load immediately after product title
+        // Removed wc_get_template filter to prevent conflicts and ensure proper priority
         add_action('woocommerce_single_product_summary', array($this, 'load_subscription_add_to_cart'), 6);
     }
     
@@ -789,7 +787,10 @@ class ZlaarkSubscriptionsProductType {
         $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
 
         if (file_exists($template_path) && $product->is_purchasable()) {
+            // Add debug marker to verify this is loading at priority 6
+            echo "<!-- Zlaark: Template loading at priority 6 (after title) -->";
             include $template_path;
+            echo "<!-- Zlaark: Template loaded successfully -->";
         }
     }
 
