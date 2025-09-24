@@ -46,14 +46,12 @@ class ZlaarkSubscriptionsAdmin {
      * Initialize components
      */
     private function init_components() {
-        // TEMPORARILY COMMENTED OUT FOR TESTING - shortcode documentation
-        /*
+        // Initialize shortcode documentation
         add_action('admin_init', function() {
             if (class_exists('ZlaarkSubscriptionsShortcodes')) {
                 ZlaarkSubscriptionsShortcodes::instance();
             }
         });
-        */
     }
     
     /**

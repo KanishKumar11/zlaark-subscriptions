@@ -48,16 +48,12 @@ class ZlaarkSubscriptionsFrontend {
         // Enqueue frontend scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
         
-        // Add subscription info to single product page (higher priority than product type class)
-        add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 26);
+        // Add subscription buttons immediately after product title (priority 6-8)
+        add_action('woocommerce_single_product_summary', array($this, 'display_trial_highlight'), 6);
+        add_action('woocommerce_single_product_summary', array($this, 'display_comprehensive_trial_info'), 7);
+        add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 8);
 
-        // Add prominent trial information display after title
-        add_action('woocommerce_single_product_summary', array($this, 'display_trial_highlight'), 7);
-
-        // Add comprehensive trial information after price
-        add_action('woocommerce_single_product_summary', array($this, 'display_comprehensive_trial_info'), 12);
-
-        // Ensure add to cart button appears for subscription products
+        // Ensure add to cart button appears for subscription products (keep at end)
         add_action('woocommerce_single_product_summary', array($this, 'force_subscription_add_to_cart'), 31);
 
 
@@ -81,6 +77,9 @@ class ZlaarkSubscriptionsFrontend {
         add_action('wp_ajax_zlaark_cancel_subscription', array($this, 'handle_cancel_subscription'));
         add_action('wp_ajax_zlaark_pause_subscription', array($this, 'handle_pause_subscription'));
         add_action('wp_ajax_zlaark_resume_subscription', array($this, 'handle_resume_subscription'));
+
+        // Handle post-login redirects for subscription actions
+        add_action('template_redirect', array($this, 'handle_post_login_actions'));
         
         // Restrict content based on subscription status
         add_filter('the_content', array($this, 'restrict_content_by_subscription'));
@@ -892,15 +891,7 @@ class ZlaarkSubscriptionsFrontend {
                 }
             }
 
-            // Safely ensure product type is registered
-            if (class_exists('ZlaarkSubscriptionsProductType')) {
-                try {
-                    ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
-                } catch (Exception $e) {
-                    // Log error but don't break the shortcode
-                    error_log('Zlaark Subscriptions: Error in force_registration_for_diagnostics: ' . $e->getMessage());
-                }
-            }
+
 
             $product = wc_get_product($atts['product_id']);
             if (!$product || $product->get_type() !== 'subscription') {
@@ -960,21 +951,39 @@ class ZlaarkSubscriptionsFrontend {
 
         // Generate button HTML
         if ($trial_available) {
-            $redirect_url = !empty($atts['redirect']) ? esc_url($atts['redirect']) : get_permalink($product->get_id());
-            $nonce_field = wp_nonce_field('zlaark_trial_button', 'zlaark_trial_nonce', true, false);
+            // Check if user is logged in
+            if (!is_user_logged_in()) {
+                // Create login URL with redirect back to add trial to cart
+                $login_redirect_url = add_query_arg(array(
+                    'zlaark_action' => 'add_trial',
+                    'product_id' => $product->get_id(),
+                    'redirect_to' => urlencode(get_permalink())
+                ), wc_get_cart_url());
 
-            // Build HTML as single line to avoid WordPress parsing issues
-            $html = '<form method="post" action="' . esc_url(wc_get_cart_url()) . '" class="zlaark-trial-form">';
-            $html .= '<input type="hidden" name="add-to-cart" value="' . esc_attr($product->get_id()) . '">';
-            $html .= '<input type="hidden" name="subscription_type" value="trial">';
-            $html .= '<button type="submit" class="' . esc_attr($atts['class']) . '" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
-            $html .= '<span class="button-icon">🎯</span>';
-            $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
-            $html .= '</button>';
-            $html .= $nonce_field;
-            $html .= '</form>';
+                $login_url = add_query_arg('redirect_to', urlencode($login_redirect_url), wp_login_url());
 
-            return $html;
+                $html = '<a href="' . esc_url($login_url) . '" class="' . esc_attr($atts['class']) . ' login-required" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
+                $html .= '<span class="button-icon">🎯</span>';
+                $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
+                $html .= '</a>';
+
+                return $html;
+            } else {
+                // User is logged in, show regular form
+                $nonce_field = wp_nonce_field('zlaark_trial_button', 'zlaark_trial_nonce', true, false);
+
+                $html = '<form method="post" action="' . esc_url(wc_get_cart_url()) . '" class="zlaark-trial-form">';
+                $html .= '<input type="hidden" name="add-to-cart" value="' . esc_attr($product->get_id()) . '">';
+                $html .= '<input type="hidden" name="subscription_type" value="trial">';
+                $html .= '<button type="submit" class="' . esc_attr($atts['class']) . '" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
+                $html .= '<span class="button-icon">🎯</span>';
+                $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
+                $html .= '</button>';
+                $html .= $nonce_field;
+                $html .= '</form>';
+
+                return $html;
+            }
         } else {
             return '<div class="trial-unavailable"><span class="unavailable-icon">🚫</span><span class="unavailable-text">' . __('Trial Not Available', 'zlaark-subscriptions') . '</span></div>';
         }
@@ -1029,10 +1038,7 @@ class ZlaarkSubscriptionsFrontend {
             }
         }
 
-        // Ensure product type is registered before loading product
-        if (class_exists('ZlaarkSubscriptionsProductType')) {
-            ZlaarkSubscriptionsProductType::force_registration_for_diagnostics();
-        }
+
 
         $product = wc_get_product($atts['product_id']);
         if (!$product || $product->get_type() !== 'subscription') {
@@ -1058,21 +1064,39 @@ class ZlaarkSubscriptionsFrontend {
             );
         }
 
-        $redirect_url = !empty($atts['redirect']) ? esc_url($atts['redirect']) : get_permalink($product->get_id());
-        $nonce_field = wp_nonce_field('zlaark_subscription_button', 'zlaark_subscription_nonce', true, false);
+        // Check if user is logged in
+        if (!is_user_logged_in()) {
+            // Create login URL with redirect back to add subscription to cart
+            $login_redirect_url = add_query_arg(array(
+                'zlaark_action' => 'add_subscription',
+                'product_id' => $product->get_id(),
+                'redirect_to' => urlencode(get_permalink())
+            ), wc_get_cart_url());
 
-        // Build HTML as single line to avoid WordPress parsing issues
-        $html = '<form method="post" action="' . esc_url(wc_get_cart_url()) . '" class="zlaark-subscription-form">';
-        $html .= '<input type="hidden" name="add-to-cart" value="' . esc_attr($product->get_id()) . '">';
-        $html .= '<input type="hidden" name="subscription_type" value="regular">';
-        $html .= '<button type="submit" class="' . esc_attr($atts['class']) . '" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
-        $html .= '<span class="button-icon">🚀</span>';
-        $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
-        $html .= '</button>';
-        $html .= $nonce_field;
-        $html .= '</form>';
+            $login_url = add_query_arg('redirect_to', urlencode($login_redirect_url), wp_login_url());
+
+            $html = '<a href="' . esc_url($login_url) . '" class="' . esc_attr($atts['class']) . ' login-required" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
+            $html .= '<span class="button-icon">🚀</span>';
+            $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
+            $html .= '</a>';
 
             return $html;
+        } else {
+            // User is logged in, show regular form
+            $nonce_field = wp_nonce_field('zlaark_subscription_button', 'zlaark_subscription_nonce', true, false);
+
+            $html = '<form method="post" action="' . esc_url(wc_get_cart_url()) . '" class="zlaark-subscription-form">';
+            $html .= '<input type="hidden" name="add-to-cart" value="' . esc_attr($product->get_id()) . '">';
+            $html .= '<input type="hidden" name="subscription_type" value="regular">';
+            $html .= '<button type="submit" class="' . esc_attr($atts['class']) . '" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
+            $html .= '<span class="button-icon">🚀</span>';
+            $html .= '<span class="button-text">' . esc_html($atts['text']) . '</span>';
+            $html .= '</button>';
+            $html .= $nonce_field;
+            $html .= '</form>';
+
+            return $html;
+        }
 
         } catch (Exception $e) {
             // Log the error and return a safe error message
@@ -1082,6 +1106,50 @@ class ZlaarkSubscriptionsFrontend {
             // Handle PHP errors
             error_log('Zlaark Subscriptions: Subscription button PHP error: ' . $e->getMessage());
             return '<p class="error">' . __('Subscription button temporarily unavailable. Please try again later.', 'zlaark-subscriptions') . '</p>';
+        }
+    }
+
+    /**
+     * Handle post-login actions for subscription buttons
+     */
+    public function handle_post_login_actions() {
+        // Only process if user is logged in and we have the right parameters
+        if (!is_user_logged_in() || !isset($_GET['zlaark_action']) || !isset($_GET['product_id'])) {
+            return;
+        }
+
+        $action = sanitize_text_field($_GET['zlaark_action']);
+        $product_id = intval($_GET['product_id']);
+        $redirect_to = isset($_GET['redirect_to']) ? esc_url_raw($_GET['redirect_to']) : '';
+
+        // Validate product
+        $product = wc_get_product($product_id);
+        if (!$product || $product->get_type() !== 'subscription') {
+            return;
+        }
+
+        // Handle the action
+        if ($action === 'add_trial' || $action === 'add_subscription') {
+            // Add product to cart
+            $cart_item_data = array(
+                'subscription_type' => ($action === 'add_trial') ? 'trial' : 'regular'
+            );
+
+            $added = WC()->cart->add_to_cart($product_id, 1, 0, array(), $cart_item_data);
+
+            if ($added) {
+                // Redirect to cart or checkout
+                $redirect_url = wc_get_checkout_url();
+                wp_redirect($redirect_url);
+                exit;
+            } else {
+                // If adding to cart failed, redirect back with error
+                if ($redirect_to) {
+                    $redirect_url = add_query_arg('zlaark_error', 'cart_failed', $redirect_to);
+                    wp_redirect($redirect_url);
+                    exit;
+                }
+            }
         }
     }
 
