@@ -89,11 +89,25 @@ if (strpos($frontend_content, 'handle_post_login_actions') !== false &&
 }
 
 // Test 6: Check button placement hooks
-echo "<h2>✅ Test 6: Button Placement</h2>";
-if (strpos($frontend_content, 'display_trial_highlight\'), 6') !== false) {
-    echo "✅ Trial buttons moved to priority 6 (after title)<br>";
+echo "<h2>✅ Test 6: Button Placement Fix</h2>";
+$product_type_content = file_get_contents('includes/class-zlaark-subscriptions-product-type.php');
+if (strpos($product_type_content, 'load_subscription_add_to_cart\'), 6') !== false) {
+    echo "✅ Template loading moved to priority 6 (after title)<br>";
 } else {
-    echo "❌ Button placement not updated<br>";
+    echo "❌ Template loading priority not updated<br>";
+}
+
+// Check that conflicting hooks are removed
+if (strpos($frontend_content, 'display_trial_highlight\'), 6') === false) {
+    echo "✅ Conflicting frontend hooks removed<br>";
+} else {
+    echo "❌ Conflicting frontend hooks still present<br>";
+}
+
+if (strpos($product_type_content, 'display_subscription_info\'), 25') === false) {
+    echo "✅ Conflicting product type hooks removed<br>";
+} else {
+    echo "❌ Conflicting product type hooks still present<br>";
 }
 
 // Summary
@@ -108,7 +122,8 @@ if ($all_tests_passed) {
     echo "<ul>";
     echo "<li>✅ Elementor integration completely removed</li>";
     echo "<li>✅ Authentication flow implemented for non-logged-in users</li>";
-    echo "<li>✅ Button placement moved to after product title</li>";
+    echo "<li>✅ Button placement fixed - template loads at priority 6 (after title)</li>";
+    echo "<li>✅ Conflicting hooks removed to prevent duplicate content</li>";
     echo "<li>✅ Debug logging removed</li>";
     echo "<li>✅ All syntax errors resolved</li>";
     echo "</ul>";

@@ -48,13 +48,10 @@ class ZlaarkSubscriptionsFrontend {
         // Enqueue frontend scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
         
-        // Add subscription buttons immediately after product title (priority 6-8)
-        add_action('woocommerce_single_product_summary', array($this, 'display_trial_highlight'), 6);
-        add_action('woocommerce_single_product_summary', array($this, 'display_comprehensive_trial_info'), 7);
-        add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 8);
+        // Note: Subscription buttons are now handled by the product type class template at priority 6
+        // Removed duplicate hooks to prevent conflicts
 
-        // Ensure add to cart button appears for subscription products (keep at end)
-        add_action('woocommerce_single_product_summary', array($this, 'force_subscription_add_to_cart'), 31);
+        // Note: Add to cart functionality is now handled by the product type class template
 
 
         

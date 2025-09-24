@@ -74,8 +74,8 @@ class ZlaarkSubscriptionsProductType {
         // Validate subscription product data
         add_action('woocommerce_admin_process_product_object', array($this, 'validate_subscription_product_data'));
 
-        // Add subscription info to product display
-        add_action('woocommerce_single_product_summary', array($this, 'display_subscription_info'), 25);
+        // Note: Subscription info is now included in the template loaded at priority 6
+        // Removed duplicate hook to prevent conflicts
 
         // Modify add to cart button for subscription products
         add_filter('woocommerce_product_add_to_cart_text', array($this, 'subscription_add_to_cart_text'), 10, 2);
@@ -88,8 +88,8 @@ class ZlaarkSubscriptionsProductType {
         // Simplified template loading for subscription products
         add_filter('wc_get_template', array($this, 'subscription_add_to_cart_template'), 10, 5);
 
-        // Primary template loading - replace WooCommerce's default add-to-cart
-        add_action('woocommerce_single_product_summary', array($this, 'load_subscription_add_to_cart'), 30);
+        // Primary template loading - load immediately after product title
+        add_action('woocommerce_single_product_summary', array($this, 'load_subscription_add_to_cart'), 6);
     }
     
     /**
@@ -771,6 +771,8 @@ class ZlaarkSubscriptionsProductType {
 
     /**
      * Load subscription add-to-cart template
+     * This loads the template containing trial and subscription buttons at priority 6
+     * (immediately after product title) for proper placement
      */
     public function load_subscription_add_to_cart() {
         global $product;
@@ -783,16 +785,11 @@ class ZlaarkSubscriptionsProductType {
         // Remove WooCommerce's default add-to-cart to prevent conflicts
         remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
 
-        // Load our subscription template
+        // Load our subscription template with trial and subscription buttons
         $template_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'templates/single-product/add-to-cart/subscription.php';
 
         if (file_exists($template_path) && $product->is_purchasable()) {
             include $template_path;
-
-            // Debug output
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                echo "<!-- Zlaark: Subscription template loaded -->";
-            }
         }
     }
 
