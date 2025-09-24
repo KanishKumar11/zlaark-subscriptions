@@ -48,8 +48,9 @@ class ZlaarkSubscriptionsElementor {
         // Check if Elementor is active
         add_action('plugins_loaded', array($this, 'check_elementor'));
         
-        // Initialize Elementor widgets
+        // Initialize Elementor widgets (use both old and new hook names for compatibility)
         add_action('elementor/widgets/widgets_registered', array($this, 'register_widgets'));
+        add_action('elementor/widgets/register', array($this, 'register_widgets'));
         
         // Add widget categories
         add_action('elementor/elements/categories_registered', array($this, 'add_widget_categories'));
@@ -109,10 +110,17 @@ class ZlaarkSubscriptionsElementor {
             if (file_exists($file_path)) {
                 require_once $file_path;
                 
-                // Register the widget
+                // Register the widget (support both old and new API)
                 $widget_class = 'ZlaarkSubscriptions' . str_replace('-', '', ucwords($widget_file, '-')) . 'Widget';
                 if (class_exists($widget_class)) {
-                    \Elementor\Plugin::instance()->widgets_manager->register_widget_type(new $widget_class());
+                    $widgets_manager = \Elementor\Plugin::instance()->widgets_manager;
+                    if (method_exists($widgets_manager, 'register')) {
+                        // New API (Elementor 3.5+)
+                        $widgets_manager->register(new $widget_class());
+                    } else {
+                        // Old API (Elementor < 3.5)
+                        $widgets_manager->register_widget_type(new $widget_class());
+                    }
                 }
             }
         }

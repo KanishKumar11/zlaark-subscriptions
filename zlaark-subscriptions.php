@@ -208,19 +208,17 @@ final class ZlaarkSubscriptions {
             'includes/frontend/class-zlaark-subscriptions-my-account.php'
         ];
 
-        // Elementor includes - Include if Elementor is active
-        if (did_action('elementor/loaded')) {
-            $elementor_files = [
-                'includes/elementor/class-zlaark-subscriptions-elementor.php'
-            ];
+        // Elementor includes - Always include, the class will check if Elementor is active
+        $elementor_files = [
+            'includes/elementor/class-zlaark-subscriptions-elementor.php'
+        ];
 
-            foreach ($elementor_files as $file) {
-                $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
-                if (file_exists($file_path)) {
-                    require_once $file_path;
-                } else {
-                    error_log("Zlaark Subscriptions: Missing Elementor file - $file_path");
-                }
+        foreach ($elementor_files as $file) {
+            $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            } else {
+                error_log("Zlaark Subscriptions: Missing Elementor file - $file_path");
             }
         }
 
@@ -233,22 +231,9 @@ final class ZlaarkSubscriptions {
             }
         }
 
-        // Test files (only in development)
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $test_files = [
-                'tests/test-plugin-structure.php',
-                'debug-dual-button-display.php',
-                'test-dual-button-display.php',
-                'verify-menu-access.php'
-            ];
 
-            foreach ($test_files as $test_file) {
-                $test_file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $test_file;
-                if (file_exists($test_file_path)) {
-                    require_once $test_file_path;
-                }
-            }
-        }
+
+
 
         // Always include the dual button display fix
         $fix_file = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . 'fix-dual-button-display.php';
@@ -315,9 +300,14 @@ final class ZlaarkSubscriptions {
             ZlaarkSubscriptionsMyAccount::instance();
         }
 
-        // Initialize Elementor integration if Elementor is active
+        // Initialize Elementor integration if available
         if (class_exists('ZlaarkSubscriptionsElementor')) {
-            ZlaarkSubscriptionsElementor::instance();
+            // Use a hook to ensure proper timing
+            add_action('init', function() {
+                if (class_exists('ZlaarkSubscriptionsElementor')) {
+                    ZlaarkSubscriptionsElementor::instance();
+                }
+            });
         }
     }
     
