@@ -160,8 +160,6 @@ final class ZlaarkSubscriptions {
      * Include required files
      */
     private function includes() {
-        error_log("Zlaark Debug: Starting file includes");
-
         // Core includes
         $core_files = [
             'includes/class-zlaark-subscriptions-install.php',
@@ -179,16 +177,8 @@ final class ZlaarkSubscriptions {
 
         foreach ($core_files as $file) {
             $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
-            error_log("Zlaark Debug: About to include $file");
             if (file_exists($file_path)) {
-                try {
-                    require_once $file_path;
-                    error_log("Zlaark Debug: Successfully included $file");
-                } catch (Exception $e) {
-                    error_log("Zlaark Debug: Exception including $file - " . $e->getMessage());
-                } catch (Error $e) {
-                    error_log("Zlaark Debug: Fatal error including $file - " . $e->getMessage());
-                }
+                require_once $file_path;
             } else {
                 error_log("Zlaark Subscriptions: Missing file - $file_path");
             }
@@ -199,22 +189,13 @@ final class ZlaarkSubscriptions {
         $admin_files = [
             'includes/admin/class-zlaark-subscriptions-admin.php',
             'includes/admin/class-zlaark-subscriptions-admin-list.php',
-            // TEMPORARILY COMMENTED OUT FOR TESTING:
-            // 'includes/admin/class-zlaark-subscriptions-shortcodes.php'
+            'includes/admin/class-zlaark-subscriptions-shortcodes.php'
         ];
 
         foreach ($admin_files as $file) {
             $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
-            error_log("Zlaark Debug: About to include admin file $file");
             if (file_exists($file_path)) {
-                try {
-                    require_once $file_path;
-                    error_log("Zlaark Debug: Successfully included admin file $file");
-                } catch (Exception $e) {
-                    error_log("Zlaark Debug: Exception including admin file $file - " . $e->getMessage());
-                } catch (Error $e) {
-                    error_log("Zlaark Debug: Fatal error including admin file $file - " . $e->getMessage());
-                }
+                require_once $file_path;
             } else {
                 error_log("Zlaark Subscriptions: Missing admin file - $file_path");
             }
@@ -227,8 +208,7 @@ final class ZlaarkSubscriptions {
             'includes/frontend/class-zlaark-subscriptions-my-account.php'
         ];
 
-        // TEMPORARILY COMMENTED OUT FOR TESTING - Elementor includes
-        /*
+        // Elementor includes - Always include, the class will check if Elementor is active
         $elementor_files = [
             'includes/elementor/class-zlaark-subscriptions-elementor.php'
         ];
@@ -241,20 +221,11 @@ final class ZlaarkSubscriptions {
                 error_log("Zlaark Subscriptions: Missing Elementor file - $file_path");
             }
         }
-        */
 
         foreach ($frontend_files as $file) {
             $file_path = ZLAARK_SUBSCRIPTIONS_PLUGIN_DIR . $file;
-            error_log("Zlaark Debug: About to include frontend file $file");
             if (file_exists($file_path)) {
-                try {
-                    require_once $file_path;
-                    error_log("Zlaark Debug: Successfully included frontend file $file");
-                } catch (Exception $e) {
-                    error_log("Zlaark Debug: Exception including frontend file $file - " . $e->getMessage());
-                } catch (Error $e) {
-                    error_log("Zlaark Debug: Fatal error including frontend file $file - " . $e->getMessage());
-                }
+                require_once $file_path;
             } else {
                 error_log("Zlaark Subscriptions: Missing frontend file - $file_path");
             }
@@ -329,8 +300,7 @@ final class ZlaarkSubscriptions {
             ZlaarkSubscriptionsMyAccount::instance();
         }
 
-        // TEMPORARILY COMMENTED OUT FOR TESTING - Elementor integration
-        /*
+        // Initialize Elementor integration if available
         if (class_exists('ZlaarkSubscriptionsElementor')) {
             // Use a hook to ensure proper timing
             add_action('init', function() {
@@ -339,7 +309,6 @@ final class ZlaarkSubscriptions {
                 }
             });
         }
-        */
     }
     
     /**
