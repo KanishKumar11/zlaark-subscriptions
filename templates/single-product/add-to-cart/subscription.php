@@ -93,7 +93,7 @@ if ($product->is_in_stock()) :
             <?php if ($trial_enabled_for_product && $has_trial): ?>
                 <div class="trial-cart">
                     <?php if ($trial_available): ?>
-                        <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="trial-button" data-subscription-type="trial">
+                        <button type="button" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="trial-button" data-subscription-type="trial">
                             <span class="button-icon">🎯</span>
                             <span class="button-text">
                                 <?php if ($product->get_trial_price() > 0): ?>
@@ -115,7 +115,7 @@ if ($product->is_in_stock()) :
             <?php endif; ?>
 
             <div class="regular-cart">
-                <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="regular-button" data-subscription-type="regular">
+                <button type="button" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="regular-button" data-subscription-type="regular">
                     <span class="button-icon">🚀</span>
                     <span class="button-text">
                         <?php printf(__('Start Subscription - %s %s', 'zlaark-subscriptions'), wc_price($product->get_recurring_price()), $product->get_billing_interval()); ?>
@@ -205,25 +205,25 @@ if ($product->is_in_stock()) :
     }
 
     .trial-button {
-        background: linear-gradient(135deg, #D6809C 0%, #927397 100%) !important;
+        background: #D6809C !important;
         color: white !important;
         box-shadow: 0 4px 8px rgba(214, 128, 156, 0.3) !important;
     }
 
     .trial-button:hover {
-        background: linear-gradient(135deg, #927397 0%, #D6809C 100%) !important;
+        background: #927397 !important;
         transform: translateY(-3px) !important;
         box-shadow: 0 8px 16px rgba(214, 128, 156, 0.4) !important;
     }
 
     .regular-button {
-        background: linear-gradient(135deg, #927397 0%, #D6809C 100%) !important;
+        background: #927397 !important;
         color: white !important;
         box-shadow: 0 4px 8px rgba(146, 115, 151, 0.3) !important;
     }
 
     .regular-button:hover {
-        background: linear-gradient(135deg, #D6809C 0%, #927397 100%) !important;
+        background: #D6809C !important;
         transform: translateY(-3px) !important;
         box-shadow: 0 8px 16px rgba(146, 115, 151, 0.4) !important;
     }
@@ -269,12 +269,12 @@ if ($product->is_in_stock()) :
     }
 
     .trial-button.success {
-        background: linear-gradient(135deg, #927397 0%, #D6809C 100%) !important;
+        background: #927397 !important;
         box-shadow: 0 6px 12px rgba(214, 128, 156, 0.4) !important;
     }
 
     .regular-button.success {
-        background: linear-gradient(135deg, #D6809C 0%, #927397 100%) !important;
+        background: #D6809C !important;
         box-shadow: 0 6px 12px rgba(146, 115, 151, 0.4) !important;
     }
 
@@ -400,8 +400,15 @@ if ($product->is_in_stock()) :
                     buttonOpacity: $button.css('opacity')
                 });
 
-                $('.trial-button, .regular-button').removeClass('selected loading success').prop('disabled', false);
-                $button.addClass('selected loading').prop('disabled', true);
+                // Cache original text for restore on error/timeout
+                var $buttonText = $button.find('.button-text');
+                if ($buttonText.length && !$buttonText.data('original-text')) {
+                    $buttonText.data('original-text', $buttonText.text());
+                }
+
+                // Reset other buttons and set loading state on current
+                $('.trial-button, .regular-button').removeClass('selected loading success').prop('disabled', false).attr('aria-busy', 'false');
+                $button.addClass('selected loading').prop('disabled', true).attr('aria-busy', 'true');
 
                 console.log('Zlaark: After visual feedback', {
                     buttonVisible: $button.is(':visible'),
@@ -479,6 +486,10 @@ if ($product->is_in_stock()) :
                                 console.log('Zlaark: Redirecting for authentication', response.data.redirect);
                                 window.location.href = response.data.redirect;
                             } else {
+                                if ($buttonText && $buttonText.length) {
+                                    $buttonText.text($buttonText.data('original-text'));
+                                }
+                                $button.attr('aria-busy', 'false');
                                 alert(errorMessage);
                             }
                         }
@@ -499,7 +510,11 @@ if ($product->is_in_stock()) :
                             $button.show();
                         }
 
-                        $button.removeClass('loading').prop('disabled', false);
+                        $button.removeClass('loading').prop('disabled', false).attr('aria-busy', 'false');
+
+                        if ($buttonText && $buttonText.length) {
+                            $buttonText.text($buttonText.data('original-text'));
+                        }
 
                         var errorMsg = '<?php echo esc_js(__('Network error. Please try again.', 'zlaark-subscriptions')); ?>';
                         if (xhr.status === 0) {
@@ -518,7 +533,10 @@ if ($product->is_in_stock()) :
                 // Fallback timeout to prevent permanent loading state
                 setTimeout(function() {
                     if ($button.hasClass('loading')) {
-                        $button.removeClass('loading').prop('disabled', false);
+                        $button.removeClass('loading').prop('disabled', false).attr('aria-busy', 'false');
+                        if ($buttonText && $buttonText.length) {
+                            $buttonText.text($buttonText.data('original-text'));
+                        }
                         console.log('Zlaark: Loading state timeout - button re-enabled');
                         alert('<?php echo esc_js(__('Request timed out. Please try again.', 'zlaark-subscriptions')); ?>');
                     }
