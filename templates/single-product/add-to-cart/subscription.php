@@ -205,27 +205,27 @@ if ($product->is_in_stock()) :
     }
 
     .trial-button {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
         color: white !important;
-        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3) !important;
+        box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3) !important;
     }
 
     .trial-button:hover {
-        background: linear-gradient(135deg, #218838 0%, #1ea085 100%) !important;
+        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
         transform: translateY(-3px) !important;
-        box-shadow: 0 8px 16px rgba(40, 167, 69, 0.4) !important;
+        box-shadow: 0 8px 16px rgba(16, 185, 129, 0.4) !important;
     }
 
     .regular-button {
-        background: linear-gradient(135deg, #007cba 0%, #0056b3 100%) !important;
+        background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%) !important;
         color: white !important;
-        box-shadow: 0 4px 8px rgba(0, 124, 186, 0.3) !important;
+        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3) !important;
     }
 
     .regular-button:hover {
-        background: linear-gradient(135deg, #0056b3 0%, #004085 100%) !important;
+        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%) !important;
         transform: translateY(-3px) !important;
-        box-shadow: 0 8px 16px rgba(0, 124, 186, 0.4) !important;
+        box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4) !important;
     }
 
     .button-icon {
@@ -258,6 +258,24 @@ if ($product->is_in_stock()) :
         border-top: 2px solid white !important;
         border-radius: 50% !important;
         animation: zlaark-spin 1s linear infinite !important;
+    }
+
+    /* Success State Styling */
+    .trial-button.success,
+    .regular-button.success {
+        opacity: 1 !important;
+        cursor: default !important;
+        transform: scale(1.05) !important;
+    }
+
+    .trial-button.success {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+        box-shadow: 0 6px 12px rgba(5, 150, 105, 0.4) !important;
+    }
+
+    .regular-button.success {
+        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%) !important;
+        box-shadow: 0 6px 12px rgba(29, 78, 216, 0.4) !important;
     }
 
     .trial-button.loading .button-text,
@@ -321,37 +339,40 @@ if ($product->is_in_stock()) :
     }
     </style>
 
-    <!-- JavaScript for dual button system -->
+    <!-- JavaScript for dual button system with AJAX -->
     <script>
     jQuery(document).ready(function($) {
-        console.log('Zlaark: Initializing subscription buttons...');
+        console.log('Zlaark: Initializing AJAX subscription buttons...');
 
-        // Enhanced dual button system with proper form handling
+        // Enhanced dual button system with AJAX handling
         function initSubscriptionButtons() {
             // Remove any existing handlers to prevent conflicts
             $('.trial-button, .regular-button').off('click.zlaark');
-            $('form.cart').off('submit.zlaark');
 
             // Handle subscription type selection for dual buttons
             $('.trial-button, .regular-button').on('click.zlaark', function(e) {
-                e.preventDefault(); // Always prevent default to control the flow
+                e.preventDefault(); // Always prevent default
 
                 var $button = $(this);
-                var $form = $button.closest('form.cart');
                 var subscriptionType = $button.data('subscription-type');
+                var productId = $button.val() || $button.closest('form').find('[name="add-to-cart"]').val();
 
-                // Debug logging for troubleshooting
-                console.log('Zlaark: Button clicked', {
+                // Debug logging
+                console.log('Zlaark: AJAX Button clicked', {
                     type: subscriptionType,
-                    button: $button[0],
+                    productId: productId,
                     userId: '<?php echo get_current_user_id(); ?>',
-                    isLoggedIn: <?php echo is_user_logged_in() ? 'true' : 'false'; ?>,
-                    formExists: $form.length > 0
+                    isLoggedIn: <?php echo is_user_logged_in() ? 'true' : 'false'; ?>
                 });
 
                 // Validation checks
                 if (!subscriptionType) {
                     alert('<?php echo esc_js(__('Please select a subscription option.', 'zlaark-subscriptions')); ?>');
+                    return false;
+                }
+
+                if (!productId) {
+                    alert('<?php echo esc_js(__('Product ID not found.', 'zlaark-subscriptions')); ?>');
                     return false;
                 }
 
@@ -362,38 +383,65 @@ if ($product->is_in_stock()) :
                     return false;
                 }
 
-                // Set the subscription type in the hidden input
-                $('#subscription_type').val(subscriptionType);
-
                 // Add visual feedback
                 $('.trial-button, .regular-button').removeClass('selected loading').prop('disabled', false);
                 $button.addClass('selected loading').prop('disabled', true);
 
-                // Submit the form programmatically
-                console.log('Zlaark: Submitting form with subscription type:', subscriptionType);
+                // AJAX request to add to cart
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'zlaark_add_subscription_to_cart',
+                        product_id: productId,
+                        subscription_type: subscriptionType,
+                        quantity: 1,
+                        nonce: '<?php echo wp_create_nonce('zlaark_subscriptions_frontend_nonce'); ?>'
+                    },
+                    success: function(response) {
+                        console.log('Zlaark: AJAX Success', response);
 
-                // Use a small delay to ensure the UI updates are visible
-                setTimeout(function() {
-                    if ($form.length > 0) {
-                        // Trigger form submission
-                        $form[0].submit();
-                    } else {
-                        console.error('Zlaark: Form not found!');
+                        if (response.success) {
+                            // Show success message briefly
+                            $button.removeClass('loading').addClass('success');
+                            $button.find('.button-text').text('<?php echo esc_js(__('Added to Cart!', 'zlaark-subscriptions')); ?>');
+
+                            // Redirect to checkout after brief delay
+                            setTimeout(function() {
+                                window.location.href = response.data.redirect;
+                            }, 1000);
+                        } else {
+                            // Handle error
+                            console.error('Zlaark: AJAX Error', response.data);
+                            $button.removeClass('loading').prop('disabled', false);
+
+                            if (response.data.redirect) {
+                                // Redirect for login
+                                window.location.href = response.data.redirect;
+                            } else {
+                                alert(response.data.message || '<?php echo esc_js(__('An error occurred. Please try again.', 'zlaark-subscriptions')); ?>');
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Zlaark: AJAX Request Failed', {xhr: xhr, status: status, error: error});
                         $button.removeClass('loading').prop('disabled', false);
-                        alert('<?php echo esc_js(__('Form submission error. Please try again.', 'zlaark-subscriptions')); ?>');
-                    }
-                }, 100);
+                        alert('<?php echo esc_js(__('Network error. Please try again.', 'zlaark-subscriptions')); ?>');
+                    },
+                    timeout: 10000 // 10 second timeout
+                });
 
                 // Fallback timeout to prevent permanent loading state
                 setTimeout(function() {
                     if ($button.hasClass('loading')) {
                         $button.removeClass('loading').prop('disabled', false);
                         console.log('Zlaark: Loading state timeout - button re-enabled');
+                        alert('<?php echo esc_js(__('Request timed out. Please try again.', 'zlaark-subscriptions')); ?>');
                     }
-                }, 5000);
+                }, 12000);
             });
 
-            console.log('Zlaark: Subscription buttons initialized');
+            console.log('Zlaark: AJAX subscription buttons initialized');
         }
 
         // Initialize buttons
@@ -401,14 +449,17 @@ if ($product->is_in_stock()) :
 
         // Re-initialize if content is dynamically loaded
         $(document).on('wc_fragments_refreshed wc_fragments_loaded', function() {
-            console.log('Zlaark: Re-initializing subscription buttons after fragments refresh');
+            console.log('Zlaark: Re-initializing AJAX subscription buttons after fragments refresh');
             initSubscriptionButtons();
         });
 
         // Handle page visibility change to reset stuck buttons
         $(document).on('visibilitychange', function() {
             if (!document.hidden) {
-                $('.trial-button, .regular-button').removeClass('loading').prop('disabled', false);
+                $('.trial-button, .regular-button').removeClass('loading success').prop('disabled', false);
+                // Reset button text
+                $('.trial-button .button-text').text($('.trial-button .button-text').data('original-text') || '<?php echo esc_js(__('Start Trial', 'zlaark-subscriptions')); ?>');
+                $('.regular-button .button-text').text($('.regular-button .button-text').data('original-text') || '<?php echo esc_js(__('Start Subscription', 'zlaark-subscriptions')); ?>');
             }
         });
     });
