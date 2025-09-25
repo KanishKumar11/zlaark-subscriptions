@@ -341,6 +341,8 @@ if ($product->is_in_stock()) :
 
     <!-- JavaScript for dual button system with AJAX -->
     <script>
+    console.log('Zlaark: Template JS tag reached');
+
     jQuery(document).ready(function($) {
         console.log('Zlaark: Initializing AJAX subscription buttons...');
 

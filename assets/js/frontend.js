@@ -11,6 +11,8 @@
             this.bindEvents();
             this.initSubscriptionActions();
             this.initRazorpayCheckout();
+            this.initDiagnostics();
+            this.initDualButtons();
         },
 
         bindEvents: function () {
@@ -292,6 +294,152 @@
             }, 500);
         },
 
+        // Diagnostics: global logs and optional inline panel
+        initDiagnostics: function () {
+            try {
+                console.log('Zlaark: Frontend JS loaded');
+            } catch (e) { }
+
+            // Global AJAX logging
+            $(document).off('ajaxError.zlaark ajaxSuccess.zlaark')
+                .on('ajaxError.zlaark', function (e, xhr, settings, error) {
+                    try { console.warn('Zlaark Diag: ajaxError', { url: settings && settings.url, status: xhr && xhr.status, error: error }); } catch (e) { }
+                })
+                .on('ajaxSuccess.zlaark', function (e, xhr, settings) {
+                    try { console.log('Zlaark Diag: ajaxSuccess', { url: settings && settings.url, status: xhr && xhr.status }); } catch (e) { }
+                });
+
+            // Inline diagnostics panel (enabled via ?zlaark_diag=1)
+            if (window.location.search.indexOf('zlaark_diag=1') !== -1) {
+                var $panel = $('<div/>', { css: { border: '2px solid #f59e0b', padding: '12px', borderRadius: '8px', margin: '16px 0', background: '#fff8e1' } });
+                $panel.append('<strong>Subscription Diagnostics</strong><br><small>Live status, hook checks, and dry-run tests</small>');
+                var $btns = $('<div style="margin-top:8px; display:flex; gap:8px;"></div>');
+                var $out = $('<pre style="max-height:200px; overflow:auto; background:#fafafa; padding:8px; margin-top:8px;"></pre>');
+
+                var ajaxUrl = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.ajax_url) || (window.ajaxurl) || '/wp-admin/admin-ajax.php';
+                var nonce = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.nonce) || '';
+
+                var $ping = $('<button type="button" class="button">Ping Diagnostics</button>');
+                var $dry = $('<button type="button" class="button">Dry-run Add-to-Cart</button>');
+
+                $ping.on('click', function () {
+                    $out.text('Pinging diagnostic endpoint...');
+                    $.ajax({
+                        url: ajaxUrl,
+                        type: 'POST',
+                        data: { action: 'zlaark_diag_status' },
+                        success: function (resp) { $out.text('Status:\n' + JSON.stringify(resp, null, 2)); },
+                        error: function (x, s, e) { $out.text('Diag ERROR: ' + s + ' ' + e + '\n' + (x.responseText || '').substring(0, 300)); }
+                    });
+                });
+
+                $dry.on('click', function () {
+                    var pid = $('.trial-button, .regular-button').first().val() || $('input[name="add-to-cart"]').val() || '';
+                    $out.text('Dry-run add_to_cart (no mutation) for product ' + pid + ' ...');
+                    $.ajax({
+                        url: ajaxUrl,
+                        type: 'POST',
+                        data: {
+                            action: 'zlaark_add_subscription_to_cart',
+                            product_id: pid,
+                            subscription_type: 'regular',
+                            quantity: 1,
+                            diagnostic: '1',
+                            nonce: nonce
+                        },
+                        success: function (resp) { $out.text('Dry-run response:\n' + JSON.stringify(resp, null, 2)); },
+                        error: function (x, s, e) { $out.text('Dry-run ERROR: ' + s + ' ' + e + '\n' + (x.responseText || '').substring(0, 300)); }
+                    });
+                });
+
+                $btns.append($ping, $dry);
+                $panel.append($btns, $out);
+
+                var $container = $('.subscription-purchase-options');
+                if ($container.length) { $container.before($panel); } else { $('body').prepend($panel); }
+            }
+        },
+
+        // Robust dual-button initializer (runs even if template inline JS is stripped)
+        initDualButtons: function () {
+            var self = this;
+            var ajaxUrl = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.ajax_url) || (window.ajaxurl) || '/wp-admin/admin-ajax.php';
+            var nonce = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.nonce) || '';
+
+            // Ensure no duplicate handlers
+            $(document).off('click.zlaarkSub', '.trial-button, .regular-button');
+
+            $(document).on('click.zlaarkSub', '.trial-button, .regular-button', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                var $button = $(this);
+                if ($button.prop('disabled')) return false;
+
+                var subscriptionType = $button.data('subscription-type') || ($('#subscription_type').val() || 'regular');
+                var productId = $button.val() || $button.attr('value') || $('form.cart').find('input[name="add-to-cart"]').val() || $button.data('product_id') || $button.closest('form').find('input[name="product_id"]').val() || '';
+
+                try { console.log('Zlaark: DualButton click', { subscriptionType: subscriptionType, productId: productId }); } catch (e) { }
+
+                if (!productId) {
+                    self.showNotice('Unable to determine product ID.', 'error');
+                    return false;
+                }
+
+                // UI: loading state
+                var originalText = ($button.text() || '').trim();
+                $button.data('original-text', originalText);
+                $button.addClass('loading').attr('aria-busy', 'true').prop('disabled', true);
+
+                var resetUI = function () {
+                    $button.removeClass('loading success').attr('aria-busy', 'false').prop('disabled', false);
+                    if ($button.data('original-text')) $button.text($button.data('original-text'));
+                };
+
+                // Safety timeout to avoid permanent loading
+                var safetyTimer = setTimeout(resetUI, 12000);
+
+                $.ajax({
+                    url: ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'zlaark_add_subscription_to_cart',
+                        product_id: productId,
+                        subscription_type: subscriptionType,
+                        quantity: 1,
+                        nonce: nonce
+                    },
+                    success: function (response) {
+                        clearTimeout(safetyTimer);
+                        if (response && response.success) {
+                            $button.removeClass('loading').addClass('success');
+                            setTimeout(function () {
+                                var redirect = (response.data && response.data.redirect) || (window.wc_checkout_url) || (window.location.href);
+                                window.location.href = redirect;
+                            }, 600);
+                        } else {
+                            resetUI();
+                            var msg = (response && (response.data && response.data.message || response.data)) || 'Failed to add to cart.';
+                            self.showNotice(msg, 'error');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        clearTimeout(safetyTimer);
+                        resetUI();
+                        self.showNotice('Request failed: ' + (status || '') + ' ' + (error || ''), 'error');
+                    },
+                    timeout: 10000
+                });
+
+                return false;
+            });
+
+            // Re-init after dynamic fragment loads
+            $(document).off('wc_fragments_refreshed.zlaark wc_fragments_loaded.zlaark')
+                .on('wc_fragments_refreshed.zlaark wc_fragments_loaded.zlaark', function () {
+                    // No-op; delegated click handler already attached at document
+                });
+        },
         // Handle dual button system clicks
         handleDualButtonClick: function (e) {
             var $button = $(e.currentTarget);
