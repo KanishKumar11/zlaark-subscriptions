@@ -49,7 +49,7 @@ if ($wp_login_redirects == 0) {
     echo "⚠️ Still found $wp_login_redirects wp_login_url() references<br>";
 }
 
-// Test 3: Verify enhanced JavaScript
+// Test 3: Verify enhanced JavaScript and conflict resolution
 echo "<h2>✅ Test 3: Enhanced JavaScript & Button Responsiveness</h2>";
 
 if (strpos($template_content, 'console.log(\'Zlaark: Button clicked\'') !== false) {
@@ -76,14 +76,46 @@ if (strpos($template_content, 'wc_fragments_refreshed wc_fragments_loaded') !== 
     echo "❌ Fragment refresh handling not found<br>";
 }
 
-// Test 4: Verify button colors
+// Check for JavaScript conflicts resolution
+$frontend_js_content = file_get_contents('assets/js/frontend.js');
+if (strpos($frontend_js_content, '// $(document).on(\'click\', \'.trial-button, .regular-button\'') !== false) {
+    echo "✅ Conflicting JavaScript handler removed from frontend.js<br>";
+} else {
+    echo "❌ Conflicting JavaScript handler still present in frontend.js<br>";
+}
+
+// Check for proper login validation fix
+if (strpos($template_content, '$(\'body\').hasClass(\'logged-in\')') !== false) {
+    echo "✅ Client-side login validation implemented correctly<br>";
+} else {
+    echo "❌ Client-side login validation not found<br>";
+}
+
+// Test 4: Verify button colors in both template and CSS files
 echo "<h2>✅ Test 4: Button Color Updates</h2>";
 
-if (strpos($template_content, '#28a745') !== false && strpos($template_content, '#007cba') !== false) {
-    echo "✅ New button colors implemented (Green for trial, Blue for subscription)<br>";
-    echo "✅ Replaced old colors (#D6809C, #927397) with modern, accessible colors<br>";
+$frontend_css_content = file_get_contents('assets/css/frontend.css');
+
+// Check template colors
+$template_colors_correct = strpos($template_content, '#28a745') !== false && strpos($template_content, '#007cba') !== false;
+
+// Check CSS file colors
+$css_colors_correct = strpos($frontend_css_content, '#28a745 0%, #20c997 100%) !important') !== false &&
+                     strpos($frontend_css_content, '#007cba 0%, #0056b3 100%) !important') !== false;
+
+// Check for old colors
+$old_colors_removed = strpos($frontend_css_content, '#667eea') === false &&
+                     strpos($frontend_css_content, '#f093fb') === false;
+
+if ($template_colors_correct && $css_colors_correct && $old_colors_removed) {
+    echo "✅ Button colors correctly updated in template (Green: #28a745, Blue: #007cba)<br>";
+    echo "✅ Button colors correctly updated in CSS file with !important flags<br>";
+    echo "✅ Old colors (#667eea, #f093fb) removed from CSS<br>";
 } else {
-    echo "❌ Button colors not updated<br>";
+    echo "❌ Button color issues found:<br>";
+    if (!$template_colors_correct) echo "&nbsp;&nbsp;- Template colors not updated<br>";
+    if (!$css_colors_correct) echo "&nbsp;&nbsp;- CSS file colors not updated<br>";
+    if (!$old_colors_removed) echo "&nbsp;&nbsp;- Old colors still present in CSS<br>";
 }
 
 // Test 5: Cart behavior validation

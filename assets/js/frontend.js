@@ -20,8 +20,8 @@
             // Subscription product add to cart validation (legacy single button)
             $(document).on('click', '.single_add_to_cart_button', this.validateSubscriptionAddToCart);
 
-            // Dual button system handlers
-            $(document).on('click', '.trial-button, .regular-button', this.handleDualButtonClick);
+            // Dual button system handlers - REMOVED: Now handled by template JavaScript to prevent conflicts
+            // $(document).on('click', '.trial-button, .regular-button', this.handleDualButtonClick);
 
             // Shortcode button handlers
             $(document).on('click', '.zlaark-trial-btn, .zlaark-subscription-btn', this.handleShortcodeButtonClick);

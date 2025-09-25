@@ -306,10 +306,13 @@ if ($product->is_in_stock()) :
                 // Add loading state
                 $button.addClass('loading').prop('disabled', true);
 
-                // Remove loading state after form submission or timeout
+                // Remove loading state after a shorter timeout to prevent permanent stuck state
                 setTimeout(function() {
-                    $button.removeClass('loading').prop('disabled', false);
-                }, 5000);
+                    if ($button.hasClass('loading')) {
+                        $button.removeClass('loading').prop('disabled', false);
+                        console.log('Zlaark: Loading state timeout - button re-enabled');
+                    }
+                }, 3000);
             });
 
             // Enhanced form submission validation
@@ -324,17 +327,23 @@ if ($product->is_in_stock()) :
 
                 if (!subscriptionType) {
                     e.preventDefault();
+                    $('.trial-button, .regular-button').removeClass('loading').prop('disabled', false);
                     alert('<?php echo esc_js(__('Please select a subscription option.', 'zlaark-subscriptions')); ?>');
                     return false;
                 }
 
-                // Additional validation for logged-in users
-                <?php if (!is_user_logged_in()): ?>
-                e.preventDefault();
-                alert('<?php echo esc_js(__('Please log in to purchase a subscription.', 'zlaark-subscriptions')); ?>');
-                window.location.href = '<?php echo esc_js(home_url('/auth')); ?>';
-                return false;
-                <?php endif; ?>
+                // Check if user is logged in (client-side check)
+                if (!$('body').hasClass('logged-in')) {
+                    e.preventDefault();
+                    $('.trial-button, .regular-button').removeClass('loading').prop('disabled', false);
+                    alert('<?php echo esc_js(__('Please log in to purchase a subscription.', 'zlaark-subscriptions')); ?>');
+                    window.location.href = '<?php echo esc_js(home_url('/auth')); ?>';
+                    return false;
+                }
+
+                // If validation passes, the form will submit normally
+                // Loading state will be cleared by page navigation or timeout
+                console.log('Zlaark: Form validation passed, submitting...');
             });
         }
 
