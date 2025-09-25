@@ -1622,9 +1622,19 @@ class ZlaarkSubscriptionsFrontend {
      * AJAX handler for adding subscription products to cart
      */
     public function ajax_add_subscription_to_cart() {
+        // Debug logging for AJAX request
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: AJAX request received - POST data: ' . print_r($_POST, true));
+        }
+
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'zlaark_subscriptions_frontend_nonce')) {
-            wp_die('Security check failed');
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'zlaark_subscriptions_frontend_nonce')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Nonce verification failed - Nonce: ' . ($_POST['nonce'] ?? 'missing'));
+            }
+            wp_send_json_error(array(
+                'message' => __('Security check failed. Please refresh the page and try again.', 'zlaark-subscriptions')
+            ));
         }
 
         $product_id = intval($_POST['product_id']);
@@ -1639,6 +1649,9 @@ class ZlaarkSubscriptionsFrontend {
         // Validate product
         $product = wc_get_product($product_id);
         if (!$product || $product->get_type() !== 'subscription') {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Invalid product - ID: ' . $product_id . ', Type: ' . ($product ? $product->get_type() : 'not found'));
+            }
             wp_send_json_error(array(
                 'message' => __('Invalid subscription product.', 'zlaark-subscriptions')
             ));
@@ -1646,6 +1659,9 @@ class ZlaarkSubscriptionsFrontend {
 
         // Check if user is logged in
         if (!is_user_logged_in()) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: User not logged in');
+            }
             wp_send_json_error(array(
                 'message' => __('Please log in to purchase a subscription.', 'zlaark-subscriptions'),
                 'redirect' => home_url('/auth')
@@ -1654,6 +1670,9 @@ class ZlaarkSubscriptionsFrontend {
 
         // Validate subscription type
         if (!in_array($subscription_type, array('trial', 'regular'))) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Invalid subscription type: ' . $subscription_type);
+            }
             wp_send_json_error(array(
                 'message' => __('Invalid subscription type.', 'zlaark-subscriptions')
             ));
@@ -1662,16 +1681,25 @@ class ZlaarkSubscriptionsFrontend {
         // Run WooCommerce validation
         $passed = apply_filters('woocommerce_add_to_cart_validation', true, $product_id, $quantity);
         if (!$passed) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: WooCommerce validation failed for product ' . $product_id);
+            }
             wp_send_json_error(array(
                 'message' => __('Product validation failed.', 'zlaark-subscriptions')
             ));
         }
 
         // Clear cart of other subscription products
+        $removed_items = 0;
         foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
             if (isset($cart_item['data']) && $cart_item['data']->get_type() === 'subscription') {
                 WC()->cart->remove_cart_item($cart_item_key);
+                $removed_items++;
             }
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Removed ' . $removed_items . ' existing subscription items from cart');
         }
 
         // Add to cart with subscription type
@@ -1679,17 +1707,30 @@ class ZlaarkSubscriptionsFrontend {
             'subscription_type' => $subscription_type
         );
 
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Attempting to add to cart - Product: ' . $product_id . ', Type: ' . $subscription_type . ', Quantity: ' . $quantity);
+        }
+
         $cart_item_key = WC()->cart->add_to_cart($product_id, $quantity, 0, array(), $cart_item_data);
 
         if ($cart_item_key) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Successfully added to cart - Key: ' . $cart_item_key);
+            }
+
             // Success response
             wp_send_json_success(array(
                 'message' => __('Product added to cart successfully.', 'zlaark-subscriptions'),
                 'redirect' => wc_get_checkout_url(),
                 'cart_count' => WC()->cart->get_cart_contents_count(),
-                'cart_total' => WC()->cart->get_cart_total()
+                'cart_total' => WC()->cart->get_cart_total(),
+                'cart_item_key' => $cart_item_key
             ));
         } else {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Failed to add to cart - Product: ' . $product_id . ', Cart state: ' . print_r(WC()->cart->get_cart(), true));
+            }
+
             wp_send_json_error(array(
                 'message' => __('Failed to add product to cart.', 'zlaark-subscriptions')
             ));
