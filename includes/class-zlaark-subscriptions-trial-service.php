@@ -376,9 +376,20 @@ class ZlaarkSubscriptionsTrialService {
      */
     public function add_trial_type_to_cart($cart_item_data, $product_id, $variation_id) {
         if (isset($_POST['subscription_type'])) {
-            $cart_item_data['subscription_type'] = sanitize_text_field($_POST['subscription_type']);
+            $subscription_type = sanitize_text_field($_POST['subscription_type']);
+            $cart_item_data['subscription_type'] = $subscription_type;
+
+            // Debug logging
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Adding subscription type to cart - Product ID: ' . $product_id . ', Type: ' . $subscription_type . ', User ID: ' . get_current_user_id());
+            }
+        } else {
+            // Debug logging for missing subscription type
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: No subscription_type in POST data for product ' . $product_id . ' - POST: ' . print_r($_POST, true));
+            }
         }
-        
+
         return $cart_item_data;
     }
     

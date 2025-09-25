@@ -241,12 +241,38 @@ class WC_Product_Subscription extends WC_Product {
     }
     
     /**
-     * Check if product has trial
+     * Check if trials are enabled for this product
+     *
+     * @param string $context
+     * @return bool
+     */
+    public function is_trial_enabled($context = 'view') {
+        $enabled = $this->get_meta('_subscription_trial_enabled', true, $context);
+
+        // Default to 'yes' for backward compatibility if not set
+        if (empty($enabled)) {
+            return true;
+        }
+
+        return $enabled === 'yes';
+    }
+
+    /**
+     * Set trial enabled status
+     *
+     * @param bool $enabled
+     */
+    public function set_trial_enabled($enabled) {
+        $this->update_meta_data('_subscription_trial_enabled', $enabled ? 'yes' : 'no');
+    }
+
+    /**
+     * Check if product has trial (updated to include trial enabled check)
      *
      * @return bool
      */
     public function has_trial() {
-        return $this->get_trial_duration() > 0;
+        return $this->is_trial_enabled() && $this->get_trial_duration() > 0;
     }
 
     /**

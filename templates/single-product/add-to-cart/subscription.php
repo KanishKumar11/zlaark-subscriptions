@@ -20,13 +20,14 @@ echo wc_get_stock_html($product); // WPCS: XSS ok.
 
 if ($product->is_in_stock()) :
 
-    // Check if product has trial
+    // Check if trials are enabled for this product and if product has trial configuration
+    $trial_enabled_for_product = method_exists($product, 'is_trial_enabled') ? $product->is_trial_enabled() : true; // Default to true for backward compatibility
     $has_trial = method_exists($product, 'has_trial') && $product->has_trial();
     $user_id = get_current_user_id();
     $trial_available = false;
 
-    // Get trial service and check eligibility if trial exists
-    if ($has_trial && class_exists('ZlaarkSubscriptionsTrialService')) {
+    // Get trial service and check eligibility if trial exists AND is enabled for this product
+    if ($trial_enabled_for_product && $has_trial && class_exists('ZlaarkSubscriptionsTrialService')) {
         try {
             $trial_service = ZlaarkSubscriptionsTrialService::instance();
             $trial_eligibility = $trial_service->check_trial_eligibility($user_id, $product->get_id());
@@ -89,7 +90,7 @@ if ($product->is_in_stock()) :
 
         <!-- Dual Button System -->
         <div class="subscription-purchase-options">
-            <?php if ($has_trial): ?>
+            <?php if ($trial_enabled_for_product && $has_trial): ?>
                 <div class="trial-cart">
                     <?php if ($trial_available): ?>
                         <button type="submit" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="trial-button" data-subscription-type="trial">
@@ -235,6 +236,48 @@ if ($product->is_in_stock()) :
         font-weight: 600;
     }
 
+    /* Loading State Styling */
+    .trial-button.loading,
+    .regular-button.loading {
+        opacity: 0.7 !important;
+        cursor: not-allowed !important;
+        transform: none !important;
+        position: relative !important;
+    }
+
+    .trial-button.loading::after,
+    .regular-button.loading::after {
+        content: '' !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        width: 20px !important;
+        height: 20px !important;
+        margin: -10px 0 0 -10px !important;
+        border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        border-top: 2px solid white !important;
+        border-radius: 50% !important;
+        animation: zlaark-spin 1s linear infinite !important;
+    }
+
+    .trial-button.loading .button-text,
+    .regular-button.loading .button-text,
+    .trial-button.loading .button-icon,
+    .regular-button.loading .button-icon {
+        opacity: 0 !important;
+    }
+
+    @keyframes zlaark-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Selected State Styling */
+    .trial-button.selected,
+    .regular-button.selected {
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5) !important;
+    }
+
     /* Trial Unavailable Styling */
     .trial-unavailable {
         display: flex;
@@ -281,11 +324,20 @@ if ($product->is_in_stock()) :
     <!-- JavaScript for dual button system -->
     <script>
     jQuery(document).ready(function($) {
-        // Enhanced dual button system with better error handling
+        console.log('Zlaark: Initializing subscription buttons...');
+
+        // Enhanced dual button system with proper form handling
         function initSubscriptionButtons() {
+            // Remove any existing handlers to prevent conflicts
+            $('.trial-button, .regular-button').off('click.zlaark');
+            $('form.cart').off('submit.zlaark');
+
             // Handle subscription type selection for dual buttons
-            $('.trial-button, .regular-button').off('click.zlaark').on('click.zlaark', function(e) {
+            $('.trial-button, .regular-button').on('click.zlaark', function(e) {
+                e.preventDefault(); // Always prevent default to control the flow
+
                 var $button = $(this);
+                var $form = $button.closest('form.cart');
                 var subscriptionType = $button.data('subscription-type');
 
                 // Debug logging for troubleshooting
@@ -293,58 +345,55 @@ if ($product->is_in_stock()) :
                     type: subscriptionType,
                     button: $button[0],
                     userId: '<?php echo get_current_user_id(); ?>',
-                    isLoggedIn: <?php echo is_user_logged_in() ? 'true' : 'false'; ?>
+                    isLoggedIn: <?php echo is_user_logged_in() ? 'true' : 'false'; ?>,
+                    formExists: $form.length > 0
                 });
 
-                // Set the subscription type in the hidden input
-                $('#subscription_type').val(subscriptionType);
-
-                // Add visual feedback
-                $('.trial-button, .regular-button').removeClass('selected');
-                $button.addClass('selected');
-
-                // Add loading state
-                $button.addClass('loading').prop('disabled', true);
-
-                // Remove loading state after a shorter timeout to prevent permanent stuck state
-                setTimeout(function() {
-                    if ($button.hasClass('loading')) {
-                        $button.removeClass('loading').prop('disabled', false);
-                        console.log('Zlaark: Loading state timeout - button re-enabled');
-                    }
-                }, 3000);
-            });
-
-            // Enhanced form submission validation
-            $('form.cart').off('submit.zlaark').on('submit.zlaark', function(e) {
-                var subscriptionType = $('#subscription_type').val();
-                var $form = $(this);
-
-                console.log('Zlaark: Form submission', {
-                    subscriptionType: subscriptionType,
-                    formAction: $form.attr('action')
-                });
-
+                // Validation checks
                 if (!subscriptionType) {
-                    e.preventDefault();
-                    $('.trial-button, .regular-button').removeClass('loading').prop('disabled', false);
                     alert('<?php echo esc_js(__('Please select a subscription option.', 'zlaark-subscriptions')); ?>');
                     return false;
                 }
 
                 // Check if user is logged in (client-side check)
                 if (!$('body').hasClass('logged-in')) {
-                    e.preventDefault();
-                    $('.trial-button, .regular-button').removeClass('loading').prop('disabled', false);
                     alert('<?php echo esc_js(__('Please log in to purchase a subscription.', 'zlaark-subscriptions')); ?>');
                     window.location.href = '<?php echo esc_js(home_url('/auth')); ?>';
                     return false;
                 }
 
-                // If validation passes, the form will submit normally
-                // Loading state will be cleared by page navigation or timeout
-                console.log('Zlaark: Form validation passed, submitting...');
+                // Set the subscription type in the hidden input
+                $('#subscription_type').val(subscriptionType);
+
+                // Add visual feedback
+                $('.trial-button, .regular-button').removeClass('selected loading').prop('disabled', false);
+                $button.addClass('selected loading').prop('disabled', true);
+
+                // Submit the form programmatically
+                console.log('Zlaark: Submitting form with subscription type:', subscriptionType);
+
+                // Use a small delay to ensure the UI updates are visible
+                setTimeout(function() {
+                    if ($form.length > 0) {
+                        // Trigger form submission
+                        $form[0].submit();
+                    } else {
+                        console.error('Zlaark: Form not found!');
+                        $button.removeClass('loading').prop('disabled', false);
+                        alert('<?php echo esc_js(__('Form submission error. Please try again.', 'zlaark-subscriptions')); ?>');
+                    }
+                }, 100);
+
+                // Fallback timeout to prevent permanent loading state
+                setTimeout(function() {
+                    if ($button.hasClass('loading')) {
+                        $button.removeClass('loading').prop('disabled', false);
+                        console.log('Zlaark: Loading state timeout - button re-enabled');
+                    }
+                }, 5000);
             });
+
+            console.log('Zlaark: Subscription buttons initialized');
         }
 
         // Initialize buttons
@@ -352,7 +401,15 @@ if ($product->is_in_stock()) :
 
         // Re-initialize if content is dynamically loaded
         $(document).on('wc_fragments_refreshed wc_fragments_loaded', function() {
+            console.log('Zlaark: Re-initializing subscription buttons after fragments refresh');
             initSubscriptionButtons();
+        });
+
+        // Handle page visibility change to reset stuck buttons
+        $(document).on('visibilitychange', function() {
+            if (!document.hidden) {
+                $('.trial-button, .regular-button').removeClass('loading').prop('disabled', false);
+            }
         });
     });
     </script>

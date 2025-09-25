@@ -68,6 +68,7 @@ class ZlaarkSubscriptionsFrontend {
 
         // Add individual button shortcodes
         add_shortcode('trial_button', array($this, 'trial_button_shortcode'));
+        add_shortcode('zlaark_trial_button', array($this, 'trial_button_shortcode')); // Alias for consistency
         add_shortcode('subscription_button', array($this, 'subscription_button_shortcode'));
         
         // Handle subscription actions
@@ -613,14 +614,23 @@ class ZlaarkSubscriptionsFrontend {
      */
     public function validate_subscription_add_to_cart($passed, $product_id, $quantity) {
         $product = wc_get_product($product_id);
-        
+
         if (!$product || $product->get_type() !== 'subscription') {
             return $passed;
         }
-        
+
+        // Debug logging for troubleshooting
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Add to cart validation - Product ID: ' . $product_id . ', User ID: ' . get_current_user_id() . ', Logged in: ' . (is_user_logged_in() ? 'yes' : 'no'));
+            error_log('Zlaark Subscriptions: POST data: ' . print_r($_POST, true));
+        }
+
         // Check if user is logged in
         if (!is_user_logged_in()) {
             wc_add_notice(__('You must be logged in to purchase a subscription.', 'zlaark-subscriptions'), 'error');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Zlaark Subscriptions: Add to cart blocked - User not logged in');
+            }
             return false;
         }
         
@@ -632,19 +642,29 @@ class ZlaarkSubscriptionsFrontend {
         foreach ($existing_subscriptions as $subscription) {
             if ($subscription->product_id == $product_id && in_array($subscription->status, array('active', 'trial'))) {
                 wc_add_notice(__('You already have an active subscription for this product.', 'zlaark-subscriptions'), 'error');
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Zlaark Subscriptions: Add to cart blocked - User already has active subscription for product ' . $product_id);
+                }
                 return false;
             }
         }
-        
+
         // Check if cart already contains subscription products
         foreach (WC()->cart->get_cart() as $cart_item) {
             $cart_product = $cart_item['data'];
             if ($cart_product && $cart_product->get_type() === 'subscription') {
                 wc_add_notice(__('You can only purchase one subscription at a time. Please complete your current subscription purchase first.', 'zlaark-subscriptions'), 'error');
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Zlaark Subscriptions: Add to cart blocked - Cart already contains subscription product');
+                }
                 return false;
             }
         }
-        
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Zlaark Subscriptions: Add to cart validation passed for product ' . $product_id);
+        }
+
         return $passed;
     }
     
@@ -895,7 +915,34 @@ class ZlaarkSubscriptionsFrontend {
                 return '<p class="error">' . __('Invalid subscription product.', 'zlaark-subscriptions') . '</p>';
             }
 
-        // Check if product has trial
+        // Check if trials are enabled for this product first
+        $trial_enabled_for_product = true; // Default to true for backward compatibility
+
+        if (method_exists($product, 'is_trial_enabled')) {
+            $trial_enabled_for_product = $product->is_trial_enabled();
+        } else {
+            // If the product doesn't have the method, try to reload it as the correct class
+            if ($product->get_type() === 'subscription') {
+                // Force reload the product to ensure it's the right class
+                wp_cache_delete('wc_product_' . $product->get_id(), 'products');
+                $reloaded_product = wc_get_product($product->get_id());
+
+                if (method_exists($reloaded_product, 'is_trial_enabled')) {
+                    $product = $reloaded_product; // Use the reloaded product
+                    $trial_enabled_for_product = $product->is_trial_enabled();
+                }
+            }
+        }
+
+        // If trials are disabled for this product, return empty output (or debug message in admin)
+        if (!$trial_enabled_for_product) {
+            if (current_user_can('manage_options') && defined('WP_DEBUG') && WP_DEBUG) {
+                return '<p class="notice admin-only">' . __('Trial disabled for this product (admin debug message).', 'zlaark-subscriptions') . '</p>';
+            }
+            return ''; // Return empty output for regular users
+        }
+
+        // Check if product has trial configuration
         $has_trial = false;
 
         if (method_exists($product, 'has_trial')) {
@@ -915,7 +962,10 @@ class ZlaarkSubscriptionsFrontend {
         }
 
         if (!$has_trial) {
-            return '<p class="notice">' . __('This product does not offer a trial.', 'zlaark-subscriptions') . '</p>';
+            if (current_user_can('manage_options') && defined('WP_DEBUG') && WP_DEBUG) {
+                return '<p class="notice admin-only">' . __('This product does not have trial configuration (admin debug message).', 'zlaark-subscriptions') . '</p>';
+            }
+            return ''; // Return empty output for regular users
         }
 
         // Check trial eligibility

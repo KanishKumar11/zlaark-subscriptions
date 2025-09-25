@@ -17,8 +17,8 @@
             // Subscription action handlers
             $(document).on('click', '.subscription-action', this.handleSubscriptionAction);
 
-            // Subscription product add to cart validation (legacy single button)
-            $(document).on('click', '.single_add_to_cart_button', this.validateSubscriptionAddToCart);
+            // Subscription product add to cart validation (legacy single button) - DISABLED for dual button products
+            // $(document).on('click', '.single_add_to_cart_button', this.validateSubscriptionAddToCart);
 
             // Dual button system handlers - REMOVED: Now handled by template JavaScript to prevent conflicts
             // $(document).on('click', '.trial-button, .regular-button', this.handleDualButtonClick);

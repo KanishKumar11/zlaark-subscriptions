@@ -39,6 +39,7 @@ class ZlaarkSubscriptionsProductType {
      */
     private function __construct() {
         $this->init_hooks();
+        $this->ensure_backward_compatibility();
     }
     
     /**
@@ -286,6 +287,15 @@ class ZlaarkSubscriptionsProductType {
         <div id="subscription_product_data" class="panel woocommerce_options_panel">
             <div class="options_group">
                 <?php
+                // Trial enabled checkbox
+                woocommerce_wp_checkbox(array(
+                    'id'          => '_subscription_trial_enabled',
+                    'label'       => __('Enable Trial for this Product', 'zlaark-subscriptions'),
+                    'description' => __('Check this box to enable trial functionality for this subscription product. When unchecked, only the regular subscription option will be available.', 'zlaark-subscriptions'),
+                    'desc_tip'    => false,
+                    'value'       => $product ? $product->get_meta('_subscription_trial_enabled', true) : 'yes' // Default to 'yes' for backward compatibility
+                ));
+
                 // Trial price
                 woocommerce_wp_text_input(array(
                     'id'          => '_subscription_trial_price',
@@ -298,7 +308,8 @@ class ZlaarkSubscriptionsProductType {
                         'step' => '0.01',
                         'min'  => '0'
                     ),
-                    'value' => $product ? $product->get_meta('_subscription_trial_price') : ''
+                    'value' => $product ? $product->get_meta('_subscription_trial_price') : '',
+                    'wrapper_class' => 'show_if_trial_enabled'
                 ));
                 
                 // Trial duration
@@ -312,9 +323,10 @@ class ZlaarkSubscriptionsProductType {
                     'custom_attributes' => array(
                         'min' => '1'
                     ),
-                    'value' => $product ? $product->get_meta('_subscription_trial_duration') : ''
+                    'value' => $product ? $product->get_meta('_subscription_trial_duration') : '',
+                    'wrapper_class' => 'show_if_trial_enabled'
                 ));
-                
+
                 // Trial period
                 woocommerce_wp_select(array(
                     'id'          => '_subscription_trial_period',
@@ -324,7 +336,8 @@ class ZlaarkSubscriptionsProductType {
                         'week'  => __('Week(s)', 'zlaark-subscriptions'),
                         'month' => __('Month(s)', 'zlaark-subscriptions'),
                     ),
-                    'value' => $product ? $product->get_meta('_subscription_trial_period') : 'day'
+                    'value' => $product ? $product->get_meta('_subscription_trial_period') : 'day',
+                    'wrapper_class' => 'show_if_trial_enabled'
                 ));
                 ?>
             </div>
@@ -416,6 +429,7 @@ class ZlaarkSubscriptionsProductType {
 
         // Save subscription fields with proper type handling
         $fields = array(
+            '_subscription_trial_enabled' => 'checkbox',
             '_subscription_trial_price' => 'float',
             '_subscription_trial_duration' => 'int',
             '_subscription_trial_period' => 'string',
@@ -426,7 +440,19 @@ class ZlaarkSubscriptionsProductType {
         );
 
         foreach ($fields as $field => $type) {
-            if (isset($_POST[$field])) {
+            // Handle checkbox fields specially
+            if ($type === 'checkbox') {
+                $value = isset($_POST[$field]) ? 'yes' : 'no';
+
+                // Debug logging for trial enabled checkbox
+                if ($field === '_subscription_trial_enabled' && defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Zlaark Subscriptions: Saving trial enabled - Value: '$value', POST isset: " . (isset($_POST[$field]) ? 'yes' : 'no'));
+                }
+
+                // Save using both methods to ensure it sticks
+                $product->update_meta_data($field, $value);
+                update_post_meta($post_id, $field, $value);
+            } elseif (isset($_POST[$field])) {
                 $raw_value = $_POST[$field];
 
                 // Handle different data types properly
@@ -513,12 +539,25 @@ class ZlaarkSubscriptionsProductType {
                     $('.hide_if_subscription').show();
                 }
             }).change();
-            
+
+            // Show/hide trial fields based on trial enabled checkbox
+            function toggleTrialFields() {
+                var trialEnabled = $('#_subscription_trial_enabled').is(':checked');
+                if (trialEnabled) {
+                    $('.show_if_trial_enabled').show();
+                } else {
+                    $('.show_if_trial_enabled').hide();
+                }
+            }
+
+            $('#_subscription_trial_enabled').change(toggleTrialFields);
+            toggleTrialFields(); // Initialize on page load
+
             // Validate trial price vs recurring price
             $('#_subscription_trial_price, #_subscription_recurring_price').on('blur', function() {
                 var trial_price = parseFloat($('#_subscription_trial_price').val()) || 0;
                 var recurring_price = parseFloat($('#_subscription_recurring_price').val()) || 0;
-                
+
                 if (trial_price > recurring_price && recurring_price > 0) {
                     alert('<?php echo esc_js(__('Trial price should not be higher than recurring price.', 'zlaark-subscriptions')); ?>');
                 }
@@ -1115,5 +1154,63 @@ class ZlaarkSubscriptionsProductType {
         }
 
         return false;
+    }
+
+    /**
+     * Ensure backward compatibility for existing products
+     * Sets trial enabled to 'yes' for existing subscription products that don't have this setting
+     */
+    private function ensure_backward_compatibility() {
+        // Only run this once per plugin activation/update
+        $migration_version = get_option('zlaark_subscriptions_trial_enabled_migration', '0');
+        $current_version = '1.0.0'; // Update this when making changes to the migration
+
+        if (version_compare($migration_version, $current_version, '>=')) {
+            return; // Migration already completed
+        }
+
+        // Get all subscription products
+        $subscription_products = get_posts(array(
+            'post_type' => 'product',
+            'meta_query' => array(
+                array(
+                    'key' => '_product_type',
+                    'value' => 'subscription',
+                    'compare' => '='
+                )
+            ),
+            'posts_per_page' => -1,
+            'post_status' => 'any'
+        ));
+
+        $updated_count = 0;
+
+        foreach ($subscription_products as $post) {
+            $product = wc_get_product($post->ID);
+            if (!$product) {
+                continue;
+            }
+
+            // Check if trial enabled setting already exists
+            $trial_enabled = $product->get_meta('_subscription_trial_enabled', true);
+
+            if (empty($trial_enabled)) {
+                // Set to 'yes' for backward compatibility
+                $product->update_meta_data('_subscription_trial_enabled', 'yes');
+                $product->save();
+                $updated_count++;
+
+                // Also update using direct meta for reliability
+                update_post_meta($post->ID, '_subscription_trial_enabled', 'yes');
+            }
+        }
+
+        // Mark migration as completed
+        update_option('zlaark_subscriptions_trial_enabled_migration', $current_version);
+
+        // Log the migration if debug is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG && $updated_count > 0) {
+            error_log("Zlaark Subscriptions: Trial enabled migration completed. Updated {$updated_count} products.");
+        }
     }
 }
