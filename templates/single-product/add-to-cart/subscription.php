@@ -84,8 +84,8 @@ if ($product->is_in_stock()) :
     <form class="cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype='multipart/form-data'>
         <?php do_action('woocommerce_before_add_to_cart_button'); ?>
 
-        <!-- Hidden input for subscription type -->
-        <input type="hidden" name="subscription_type" id="subscription_type" value="<?php echo ($has_trial && $trial_available) ? 'trial' : 'regular'; ?>" />
+        <!-- Hidden input for subscription type - Default to regular, JavaScript will change to trial when trial button clicked -->
+        <input type="hidden" name="subscription_type" id="subscription_type" value="regular" />
 
         <!-- Dual Button System -->
         <div class="subscription-purchase-options">
@@ -281,24 +281,69 @@ if ($product->is_in_stock()) :
     <!-- JavaScript for dual button system -->
     <script>
     jQuery(document).ready(function($) {
-        // Handle subscription type selection for dual buttons
-        $('.trial-button, .regular-button').on('click', function(e) {
-            var subscriptionType = $(this).data('subscription-type');
-            $('#subscription_type').val(subscriptionType);
+        // Enhanced dual button system with better error handling
+        function initSubscriptionButtons() {
+            // Handle subscription type selection for dual buttons
+            $('.trial-button, .regular-button').off('click.zlaark').on('click.zlaark', function(e) {
+                var $button = $(this);
+                var subscriptionType = $button.data('subscription-type');
 
-            // Optional: Add visual feedback
-            $('.trial-button, .regular-button').removeClass('selected');
-            $(this).addClass('selected');
-        });
+                // Debug logging for troubleshooting
+                console.log('Zlaark: Button clicked', {
+                    type: subscriptionType,
+                    button: $button[0],
+                    userId: '<?php echo get_current_user_id(); ?>',
+                    isLoggedIn: <?php echo is_user_logged_in() ? 'true' : 'false'; ?>
+                });
 
-        // Prevent form submission if no subscription type is set (safety check)
-        $('form.cart').on('submit', function(e) {
-            var subscriptionType = $('#subscription_type').val();
-            if (!subscriptionType) {
+                // Set the subscription type in the hidden input
+                $('#subscription_type').val(subscriptionType);
+
+                // Add visual feedback
+                $('.trial-button, .regular-button').removeClass('selected');
+                $button.addClass('selected');
+
+                // Add loading state
+                $button.addClass('loading').prop('disabled', true);
+
+                // Remove loading state after form submission or timeout
+                setTimeout(function() {
+                    $button.removeClass('loading').prop('disabled', false);
+                }, 5000);
+            });
+
+            // Enhanced form submission validation
+            $('form.cart').off('submit.zlaark').on('submit.zlaark', function(e) {
+                var subscriptionType = $('#subscription_type').val();
+                var $form = $(this);
+
+                console.log('Zlaark: Form submission', {
+                    subscriptionType: subscriptionType,
+                    formAction: $form.attr('action')
+                });
+
+                if (!subscriptionType) {
+                    e.preventDefault();
+                    alert('<?php echo esc_js(__('Please select a subscription option.', 'zlaark-subscriptions')); ?>');
+                    return false;
+                }
+
+                // Additional validation for logged-in users
+                <?php if (!is_user_logged_in()): ?>
                 e.preventDefault();
-                alert('<?php echo esc_js(__('Please select a subscription option.', 'zlaark-subscriptions')); ?>');
+                alert('<?php echo esc_js(__('Please log in to purchase a subscription.', 'zlaark-subscriptions')); ?>');
+                window.location.href = '<?php echo esc_js(home_url('/auth')); ?>';
                 return false;
-            }
+                <?php endif; ?>
+            });
+        }
+
+        // Initialize buttons
+        initSubscriptionButtons();
+
+        // Re-initialize if content is dynamically loaded
+        $(document).on('wc_fragments_refreshed wc_fragments_loaded', function() {
+            initSubscriptionButtons();
         });
     });
     </script>

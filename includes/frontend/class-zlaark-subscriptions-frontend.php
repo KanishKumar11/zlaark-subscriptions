@@ -957,7 +957,7 @@ class ZlaarkSubscriptionsFrontend {
                     'redirect_to' => urlencode(get_permalink())
                 ), wc_get_cart_url());
 
-                $login_url = add_query_arg('redirect_to', urlencode($login_redirect_url), wp_login_url());
+                $login_url = add_query_arg('redirect_to', urlencode($login_redirect_url), home_url('/auth'));
 
                 $html = '<a href="' . esc_url($login_url) . '" class="' . esc_attr($atts['class']) . ' login-required" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
                 $html .= '<span class="button-icon">🎯</span>';
@@ -1070,7 +1070,7 @@ class ZlaarkSubscriptionsFrontend {
                 'redirect_to' => urlencode(get_permalink())
             ), wc_get_cart_url());
 
-            $login_url = add_query_arg('redirect_to', urlencode($login_redirect_url), wp_login_url());
+            $login_url = add_query_arg('redirect_to', urlencode($login_redirect_url), home_url('/auth'));
 
             $html = '<a href="' . esc_url($login_url) . '" class="' . esc_attr($atts['class']) . ' login-required" style="' . esc_attr($atts['style']) . '" data-product-id="' . esc_attr($product->get_id()) . '">';
             $html .= '<span class="button-icon">🚀</span>';
