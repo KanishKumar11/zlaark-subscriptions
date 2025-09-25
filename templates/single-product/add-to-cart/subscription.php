@@ -205,27 +205,27 @@ if ($product->is_in_stock()) :
     }
 
     .trial-button {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+        background: linear-gradient(135deg, #D6809C 0%, #927397 100%) !important;
         color: white !important;
-        box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3) !important;
+        box-shadow: 0 4px 8px rgba(214, 128, 156, 0.3) !important;
     }
 
     .trial-button:hover {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+        background: linear-gradient(135deg, #927397 0%, #D6809C 100%) !important;
         transform: translateY(-3px) !important;
-        box-shadow: 0 8px 16px rgba(16, 185, 129, 0.4) !important;
+        box-shadow: 0 8px 16px rgba(214, 128, 156, 0.4) !important;
     }
 
     .regular-button {
-        background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%) !important;
+        background: linear-gradient(135deg, #927397 0%, #D6809C 100%) !important;
         color: white !important;
-        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3) !important;
+        box-shadow: 0 4px 8px rgba(146, 115, 151, 0.3) !important;
     }
 
     .regular-button:hover {
-        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%) !important;
+        background: linear-gradient(135deg, #D6809C 0%, #927397 100%) !important;
         transform: translateY(-3px) !important;
-        box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4) !important;
+        box-shadow: 0 8px 16px rgba(146, 115, 151, 0.4) !important;
     }
 
     .button-icon {
@@ -269,13 +269,13 @@ if ($product->is_in_stock()) :
     }
 
     .trial-button.success {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-        box-shadow: 0 6px 12px rgba(5, 150, 105, 0.4) !important;
+        background: linear-gradient(135deg, #927397 0%, #D6809C 100%) !important;
+        box-shadow: 0 6px 12px rgba(214, 128, 156, 0.4) !important;
     }
 
     .regular-button.success {
-        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%) !important;
-        box-shadow: 0 6px 12px rgba(29, 78, 216, 0.4) !important;
+        background: linear-gradient(135deg, #D6809C 0%, #927397 100%) !important;
+        box-shadow: 0 6px 12px rgba(146, 115, 151, 0.4) !important;
     }
 
     .trial-button.loading .button-text,
