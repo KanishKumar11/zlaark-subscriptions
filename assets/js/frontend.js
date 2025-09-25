@@ -366,10 +366,14 @@
             var ajaxUrl = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.ajax_url) || (window.ajaxurl) || '/wp-admin/admin-ajax.php';
             var nonce = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.nonce) || '';
 
-            // Ensure no duplicate handlers
-            $(document).off('click.zlaarkSub', '.trial-button, .regular-button');
+            try { console.log('Zlaark: initDualButtons binding; buttons found', $('.trial-button, .regular-button').length); } catch (e) { }
 
-            $(document).on('click.zlaarkSub', '.trial-button, .regular-button', function (e) {
+            // Ensure no duplicate handlers
+            $(document).off('click.zlaarkSub touchstart.zlaarkSub keydown.zlaarkSub', '.trial-button, .regular-button');
+
+            var handler = function (e) {
+                // Accept click, touchstart, and keyboard Enter/Space
+                if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') { return; }
                 e.preventDefault();
                 e.stopPropagation();
 
@@ -432,7 +436,22 @@
                 });
 
                 return false;
-            });
+            };
+
+            $(document)
+                .on('click.zlaarkSub', '.trial-button, .regular-button', handler)
+                .on('touchstart.zlaarkSub', '.trial-button, .regular-button', handler)
+                .on('keydown.zlaarkSub', '.trial-button, .regular-button', handler);
+
+            // Capture-phase logger to detect swallowed clicks
+            try {
+                window.addEventListener('click', function (ev) {
+                    var el = ev.target;
+                    if (el && (el.closest && (el.closest('.trial-button') || el.closest('.regular-button')))) {
+                        console.log('Zlaark: capture click observed on button');
+                    }
+                }, true);
+            } catch (e) { }
 
             // Re-init after dynamic fragment loads
             $(document).off('wc_fragments_refreshed.zlaark wc_fragments_loaded.zlaark')
@@ -440,6 +459,9 @@
                     // No-op; delegated click handler already attached at document
                 });
         },
+
+
+
         // Handle dual button system clicks
         handleDualButtonClick: function (e) {
             var $button = $(e.currentTarget);
