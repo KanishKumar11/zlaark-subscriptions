@@ -311,6 +311,14 @@
 
             // Inline diagnostics panel (enabled via ?zlaark_diag=1)
             if (window.location.search.indexOf('zlaark_diag=1') !== -1) {
+                // CSS guard to ensure clicks are not swallowed by overlays during diagnostics
+                try {
+                    var style = document.createElement('style');
+                    style.id = 'zlaark-diag-style';
+                    style.textContent = '.trial-button, .regular-button, [data-subscription-type]{pointer-events:auto !important; position:relative !important; z-index:2147483647 !important;}';
+                    document.head && document.head.appendChild(style);
+                } catch (e) { }
+
                 var $panel = $('<div/>', { css: { border: '2px solid #f59e0b', padding: '12px', borderRadius: '8px', margin: '16px 0', background: '#fff8e1' } });
                 $panel.append('<strong>Subscription Diagnostics</strong><br><small>Live status, hook checks, and dry-run tests</small>');
                 var $btns = $('<div style="margin-top:8px; display:flex; gap:8px;"></div>');
@@ -334,7 +342,7 @@
                 });
 
                 $dry.on('click', function () {
-                    var pid = $('.trial-button, .regular-button').first().val() || $('input[name="add-to-cart"]').val() || '';
+                    var pid = $('.trial-button, .regular-button, [data-subscription-type]').first().attr('data-product-id') || $('input[name="add-to-cart"]').val() || '';
                     $out.text('Dry-run add_to_cart (no mutation) for product ' + pid + ' ...');
                     $.ajax({
                         url: ajaxUrl,
@@ -368,27 +376,39 @@
 
             try { console.log('Zlaark: initDualButtons binding; buttons found', $('.trial-button, .regular-button').length); } catch (e) { }
 
-            // Ensure no duplicate handlers
-            $(document).off('click.zlaarkSub touchstart.zlaarkSub keydown.zlaarkSub', '.trial-button, .regular-button');
+            // Ensure no duplicate handlers (full selector)
+            var selector = '.trial-button, .regular-button, [data-subscription-type]';
+            var bindHandlers = function () {
+                $(document).off('click.zlaarkSub touchstart.zlaarkSub pointerdown.zlaarkSub keydown.zlaarkSub', selector);
+                $(document)
+                    .on('click.zlaarkSub', selector, function (e) { processButtonClick(e, this); })
+                    .on('touchstart.zlaarkSub', selector, function (e) { processButtonClick(e, this); })
+                    .on('pointerdown.zlaarkSub', selector, function (e) { processButtonClick(e, this); })
+                    .on('keydown.zlaarkSub', selector, function (e) { if (e.key === 'Enter' || e.key === ' ') { processButtonClick(e, this); } });
+            };
 
-            var handler = function (e) {
-                // Accept click, touchstart, and keyboard Enter/Space
-                if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') { return; }
-                e.preventDefault();
-                e.stopPropagation();
+            // Unified processor with idempotency guard
+            var processButtonClick = function (e, buttonEl) {
+                if (!buttonEl) return;
+                var $button = $(buttonEl);
 
-                var $button = $(this);
-                if ($button.prop('disabled')) return false;
+                // Keyboard filter
+                if (e && e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') { return; }
+
+                // Prevent duplicate processing in the same tick
+                var nowTs = e && e.timeStamp || Date.now();
+                var lastTs = $button.data('zlaarkProcessedAt') || 0;
+                if (nowTs && Math.abs(nowTs - lastTs) < 5) return; // same event loop
+                $button.data('zlaarkProcessedAt', nowTs);
+
+                if (e) { try { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); } catch (_) { } }
+                if ($button.prop('disabled')) { try { console.warn('Zlaark: button disabled, ignoring'); } catch (_) { } return false; }
 
                 var subscriptionType = $button.data('subscription-type') || $button.data('subscriptionType') || $button.attr('data-subscription-type') || ($('#subscription_type').val() || 'regular');
                 var productId = $button.data('product-id') || $button.data('product_id') || $button.attr('data-product-id') || $button.val() || $button.attr('value') || $button.closest('form').find('input[name="add-to-cart"]').val() || $button.closest('form').find('#zlaark_add_to_cart_product_id').val() || $button.closest('form').find('input[name="product_id"]').val() || '';
 
                 try { console.log('Zlaark: DualButton click', { subscriptionType: subscriptionType, productId: productId }); } catch (e) { }
-
-                if (!productId) {
-                    self.showNotice('Unable to determine product ID.', 'error');
-                    return false;
-                }
+                if (!productId) { try { console.error('Zlaark: Missing productId for click', $button[0]); } catch (_) { } self.showNotice('Unable to determine product ID.', 'error'); return false; }
 
                 // UI: loading state
                 var originalText = ($button.text() || '').trim();
@@ -399,8 +419,6 @@
                     $button.removeClass('loading success').attr('aria-busy', 'false').prop('disabled', false);
                     if ($button.data('original-text')) $button.text($button.data('original-text'));
                 };
-
-                // Safety timeout to avoid permanent loading
                 var safetyTimer = setTimeout(resetUI, 12000);
 
                 $.ajax({
@@ -434,21 +452,20 @@
                     },
                     timeout: 10000
                 });
-
-                return false;
             };
 
-            $(document)
-                .on('click.zlaarkSub', '.trial-button, .regular-button, [data-subscription-type]', handler)
-                .on('touchstart.zlaarkSub', '.trial-button, .regular-button, [data-subscription-type]', handler)
-                .on('keydown.zlaarkSub', '.trial-button, .regular-button, [data-subscription-type]', handler);
+            // Bind now and with short delays to beat late-binding scripts
+            bindHandlers();
+            setTimeout(bindHandlers, 50);
+            setTimeout(bindHandlers, 300);
 
             // Capture-phase logger to detect swallowed clicks
             try {
                 window.addEventListener('click', function (ev) {
-                    var el = ev.target;
-                    if (el && (el.closest && (el.closest('.trial-button') || el.closest('.regular-button')))) {
-                        console.log('Zlaark: capture click observed on button');
+                    var el = ev.target && ev.target.closest ? ev.target.closest(selector) : null;
+                    if (el) {
+                        try { console.log('Zlaark: capture click observed on button', el); } catch (e) { }
+                        processButtonClick(ev, el);
                     }
                 }, true);
             } catch (e) { }
