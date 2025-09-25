@@ -380,8 +380,8 @@
                 var $button = $(this);
                 if ($button.prop('disabled')) return false;
 
-                var subscriptionType = $button.data('subscription-type') || ($('#subscription_type').val() || 'regular');
-                var productId = $button.val() || $button.attr('value') || $('form.cart').find('input[name="add-to-cart"]').val() || $button.data('product_id') || $button.closest('form').find('input[name="product_id"]').val() || '';
+                var subscriptionType = $button.data('subscription-type') || $button.data('subscriptionType') || $button.attr('data-subscription-type') || ($('#subscription_type').val() || 'regular');
+                var productId = $button.data('product-id') || $button.data('product_id') || $button.attr('data-product-id') || $button.val() || $button.attr('value') || $button.closest('form').find('input[name="add-to-cart"]').val() || $button.closest('form').find('#zlaark_add_to_cart_product_id').val() || $button.closest('form').find('input[name="product_id"]').val() || '';
 
                 try { console.log('Zlaark: DualButton click', { subscriptionType: subscriptionType, productId: productId }); } catch (e) { }
 
@@ -439,9 +439,9 @@
             };
 
             $(document)
-                .on('click.zlaarkSub', '.trial-button, .regular-button', handler)
-                .on('touchstart.zlaarkSub', '.trial-button, .regular-button', handler)
-                .on('keydown.zlaarkSub', '.trial-button, .regular-button', handler);
+                .on('click.zlaarkSub', '.trial-button, .regular-button, [data-subscription-type]', handler)
+                .on('touchstart.zlaarkSub', '.trial-button, .regular-button, [data-subscription-type]', handler)
+                .on('keydown.zlaarkSub', '.trial-button, .regular-button, [data-subscription-type]', handler);
 
             // Capture-phase logger to detect swallowed clicks
             try {

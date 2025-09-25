@@ -87,13 +87,15 @@ if ($product->is_in_stock()) :
 
         <!-- Hidden input for subscription type - Default to regular, JavaScript will change to trial when trial button clicked -->
         <input type="hidden" name="subscription_type" id="subscription_type" value="regular" />
+        <!-- Hidden input for Woo add-to-cart (ensures product_id is always available in DOM) -->
+        <input type="hidden" name="add-to-cart" id="zlaark_add_to_cart_product_id" value="<?php echo esc_attr($product->get_id()); ?>" />
 
         <!-- Dual Button System -->
         <div class="subscription-purchase-options">
             <?php if ($trial_enabled_for_product && $has_trial): ?>
                 <div class="trial-cart">
                     <?php if ($trial_available): ?>
-                        <button type="button" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="trial-button" data-subscription-type="trial">
+                        <button type="button" class="trial-button" data-subscription-type="trial" data-product-id="<?php echo esc_attr($product->get_id()); ?>" value="<?php echo esc_attr($product->get_id()); ?>">
                             <span class="button-icon">🎯</span>
                             <span class="button-text">
                                 <?php if ($product->get_trial_price() > 0): ?>
@@ -115,7 +117,7 @@ if ($product->is_in_stock()) :
             <?php endif; ?>
 
             <div class="regular-cart">
-                <button type="button" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>" class="regular-button" data-subscription-type="regular">
+                <button type="button" class="regular-button" data-subscription-type="regular" data-product-id="<?php echo esc_attr($product->get_id()); ?>" value="<?php echo esc_attr($product->get_id()); ?>">
                     <span class="button-icon">🚀</span>
                     <span class="button-text">
                         <?php printf(__('Start Subscription - %s %s', 'zlaark-subscriptions'), wc_price($product->get_recurring_price()), $product->get_billing_interval()); ?>
