@@ -1746,7 +1746,11 @@ class ZlaarkSubscriptionsFrontend {
         if ($product && method_exists($product, 'get_trial_price') && method_exists($product, 'get_recurring_price')) {
             error_log('Product trial price: ' . $product->get_trial_price());
             error_log('Product recurring price: ' . $product->get_recurring_price());
+            error_log('Product regular price: ' . $product->get_regular_price());
+            error_log('Product sale price: ' . $product->get_sale_price());
+            error_log('Product price: ' . $product->get_price());
         }
+        error_log('Expected behavior: subscription_type "' . $subscription_type . '" should set price to ' . ($subscription_type === 'trial' ? $product->get_trial_price() : $product->get_recurring_price()));
         error_log('=== END CART ADDITION DEBUG ===');
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -1760,12 +1764,28 @@ class ZlaarkSubscriptionsFrontend {
                 error_log('Zlaark Subscriptions: Successfully added to cart - Key: ' . $cart_item_key);
             }
 
+            // Force cart recalculation to ensure prices are updated
+            WC()->cart->calculate_totals();
+
+            // Debug: Check what's actually in the cart after addition
+            error_log('=== POST-ADDITION CART DEBUG ===');
+            foreach (WC()->cart->get_cart() as $key => $item) {
+                if ($key === $cart_item_key) {
+                    error_log('Added cart item subscription_type: ' . (isset($item['subscription_type']) ? $item['subscription_type'] : 'NOT SET'));
+                    error_log('Added cart item product price: ' . $item['data']->get_price());
+                    if ($item['data']->get_type() === 'subscription') {
+                        error_log('Product trial price: ' . (method_exists($item['data'], 'get_trial_price') ? $item['data']->get_trial_price() : 'N/A'));
+                        error_log('Product recurring price: ' . (method_exists($item['data'], 'get_recurring_price') ? $item['data']->get_recurring_price() : 'N/A'));
+                    }
+                }
+            }
+            error_log('Cart total after recalculation: ' . WC()->cart->get_cart_total());
+            error_log('=== END POST-ADDITION CART DEBUG ===');
+
             // Success response
             wp_send_json_success(array(
                 'message' => __('Product added to cart successfully.', 'zlaark-subscriptions'),
                 'redirect' => wc_get_checkout_url(),
-
-
                 'cart_count' => WC()->cart->get_cart_contents_count(),
                 'cart_total' => WC()->cart->get_cart_total(),
                 'cart_item_key' => $cart_item_key
