@@ -1764,6 +1764,23 @@ class ZlaarkSubscriptionsFrontend {
                 error_log('Zlaark Subscriptions: Successfully added to cart - Key: ' . $cart_item_key);
             }
 
+            // FORCE CORRECT PRICING: Directly set the price based on subscription type
+            $cart_item = WC()->cart->get_cart()[$cart_item_key];
+            if ($cart_item && isset($cart_item['subscription_type'])) {
+                $product_obj = $cart_item['data'];
+                if ($product_obj && $product_obj->get_type() === 'subscription') {
+                    if ($subscription_type === 'trial' && method_exists($product_obj, 'get_trial_price')) {
+                        $correct_price = $product_obj->get_trial_price();
+                        error_log('FORCING TRIAL PRICE: ' . $correct_price);
+                        $product_obj->set_price($correct_price);
+                    } elseif ($subscription_type === 'regular' && method_exists($product_obj, 'get_recurring_price')) {
+                        $correct_price = $product_obj->get_recurring_price();
+                        error_log('FORCING REGULAR PRICE: ' . $correct_price);
+                        $product_obj->set_price($correct_price);
+                    }
+                }
+            }
+
             // Force cart recalculation to ensure prices are updated
             WC()->cart->calculate_totals();
 
