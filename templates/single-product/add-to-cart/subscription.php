@@ -486,17 +486,17 @@ if ($product->is_in_stock()) :
                                 $buttonText.text('<?php echo esc_js(__('Added to Cart!', 'zlaark-subscriptions')); ?>');
                             }
 
-                            console.log('Zlaark: Redirecting to checkout', response.data.redirect);
+                            console.log('Zlaark: SUCCESS - Would redirect to checkout', response.data.redirect);
 
-                            // Redirect to checkout after brief delay
-                            setTimeout(function() {
-                                if (response.data && response.data.redirect) {
-                                    window.location.href = response.data.redirect;
-                                } else {
-                                    console.error('Zlaark: No redirect URL provided');
-                                    alert('<?php echo esc_js(__('Product added but redirect failed. Please go to checkout manually.', 'zlaark-subscriptions')); ?>');
-                                }
-                            }, 1000);
+                            // Redirect disabled for debugging
+                            // setTimeout(function() {
+                            //     if (response.data && response.data.redirect) {
+                            //         window.location.href = response.data.redirect;
+                            //     } else {
+                            //         console.error('Zlaark: No redirect URL provided');
+                            //         alert('<?php echo esc_js(__('Product added but redirect failed. Please go to checkout manually.', 'zlaark-subscriptions')); ?>');
+                            //     }
+                            // }, 1000);
                         } else {
                             // Handle error response
                             console.error('Zlaark: AJAX Error Response', response);
@@ -507,9 +507,9 @@ if ($product->is_in_stock()) :
                                 : '<?php echo esc_js(__('An error occurred. Please try again.', 'zlaark-subscriptions')); ?>';
 
                             if (response && response.data && response.data.redirect) {
-                                // Redirect for login
-                                console.log('Zlaark: Redirecting for authentication', response.data.redirect);
-                                window.location.href = response.data.redirect;
+                                // Redirect for login - disabled for debugging
+                                console.log('Zlaark: Would redirect for authentication', response.data.redirect);
+                                // window.location.href = response.data.redirect;
                             } else {
                                 if ($buttonText && $buttonText.length) {
                                     $buttonText.text($buttonText.data('original-text'));
