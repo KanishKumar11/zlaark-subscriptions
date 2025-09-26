@@ -379,6 +379,7 @@
             // Ensure no duplicate handlers (full selector)
             var selector = '.trial-button, .regular-button, [data-subscription-type]';
             var bindHandlers = function () {
+                console.log('Zlaark: bindHandlers running, binding events for selector:', selector);
                 $(document).off('click.zlaarkSub touchstart.zlaarkSub pointerdown.zlaarkSub keydown.zlaarkSub', selector);
                 $(document)
                     .on('click.zlaarkSub', selector, function (e) { processButtonClick(e, this); })
@@ -389,6 +390,7 @@
 
             // Unified processor with idempotency guard
             var processButtonClick = function (e, buttonEl) {
+                console.log('Zlaark: processButtonClick called', { eventType: e && e.type, button: buttonEl });
                 if (!buttonEl) return;
                 var $button = $(buttonEl);
 
@@ -421,6 +423,15 @@
                 };
                 var safetyTimer = setTimeout(resetUI, 12000);
 
+                // Log AJAX payload for dual-button
+                console.log('Zlaark: Dual-button AJAX payload', {
+                    action: 'zlaark_add_subscription_to_cart',
+                    product_id: productId,
+                    subscription_type: subscriptionType,
+                    quantity: 1,
+                    nonce: nonce
+                });
+                console.log('Zlaark: Sending dual-button AJAX request');
                 $.ajax({
                     url: ajaxUrl,
                     type: 'POST',
@@ -432,6 +443,7 @@
                         nonce: nonce
                     },
                     success: function (response) {
+                        console.log('Zlaark: Dual-button AJAX success handler, response:', response);
                         clearTimeout(safetyTimer);
                         if (response && response.success) {
                             $button.removeClass('loading').addClass('success');
@@ -446,6 +458,7 @@
                         }
                     },
                     error: function (xhr, status, error) {
+                        console.log('Zlaark: Dual-button AJAX error handler, status:', status, 'error:', error, 'xhr:', xhr);
                         clearTimeout(safetyTimer);
                         resetUI();
                         self.showNotice('Request failed: ' + (status || '') + ' ' + (error || ''), 'error');
