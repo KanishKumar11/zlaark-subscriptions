@@ -432,24 +432,42 @@ class ZlaarkSubscriptionsTrialService {
             return;
         }
 
-        foreach ($cart->get_cart() as $cart_item) {
+        error_log('=== CART PRICE MODIFICATION DEBUG ===');
+        error_log('Cart items count: ' . count($cart->get_cart()));
+
+        foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
+            error_log('Processing cart item: ' . $cart_item_key);
+            error_log('Cart item data: ' . print_r($cart_item, true));
+
             if (isset($cart_item['subscription_type'])) {
                 $product = $cart_item['data'];
                 $subscription_type = $cart_item['subscription_type'];
 
+                error_log('Found subscription_type in cart item: ' . $subscription_type);
+                error_log('Product type: ' . ($product ? $product->get_type() : 'null'));
+
                 if ($product && $product->get_type() === 'subscription') {
+                    error_log('Processing subscription product with type: ' . $subscription_type);
+                    
                     if ($subscription_type === 'trial' && method_exists($product, 'get_trial_price')) {
                         // Set trial price
                         $trial_price = $product->get_trial_price();
+                        error_log('Setting TRIAL price: ' . $trial_price);
                         $cart_item['data']->set_price($trial_price);
                     } elseif ($subscription_type === 'regular' && method_exists($product, 'get_recurring_price')) {
                         // Set regular subscription price
                         $recurring_price = $product->get_recurring_price();
+                        error_log('Setting REGULAR price: ' . $recurring_price);
                         $cart_item['data']->set_price($recurring_price);
+                    } else {
+                        error_log('No price modification - subscription_type: ' . $subscription_type . ', has_trial_price: ' . method_exists($product, 'get_trial_price') . ', has_recurring_price: ' . method_exists($product, 'get_recurring_price'));
                     }
                 }
+            } else {
+                error_log('No subscription_type found in cart item');
             }
         }
+        error_log('=== END CART PRICE MODIFICATION DEBUG ===');
     }
 
     /**
