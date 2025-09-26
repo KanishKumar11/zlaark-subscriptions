@@ -532,6 +532,22 @@
                     $button.closest('form').find('#zlaark_add_to_cart_product_id').val() ||
                     $button.closest('form').find('input[name="zlaark_product_id"]').val() || '';
 
+                // COMPREHENSIVE LOGGING FOR DEBUGGING PRICING ISSUE
+                console.log('=== ZLAARK BUTTON CLICK DEBUG ===');
+                console.log('Button element:', $button[0]);
+                console.log('Button classes:', $button[0].className);
+                console.log('Subscription type detected:', subscriptionType);
+                console.log('Product ID detected:', productId);
+                console.log('Button data attributes:', {
+                    'data-subscription-type': $button.attr('data-subscription-type'),
+                    'data-product-id': $button.attr('data-product-id')
+                });
+                console.log('Form hidden inputs:', {
+                    'subscription_type': $button.closest('form').find('input[name="subscription_type"]').val(),
+                    'add-to-cart': $button.closest('form').find('input[name="add-to-cart"]').val()
+                });
+                console.log('=== END DEBUG ===');
+
                 try { console.log('Zlaark: DualButton click', { subscriptionType: subscriptionType, productId: productId }); } catch (e) { }
                 if (!productId) { try { console.error('Zlaark: Missing productId for click', $button[0]); } catch (_) { } self.showNotice('Unable to determine product ID.', 'error'); return false; }
 
@@ -546,26 +562,33 @@
                 };
                 var safetyTimer = setTimeout(resetUI, 12000);
 
-                // Log AJAX payload for dual-button
-                console.log('Zlaark: Dual-button AJAX payload', {
+                // DETAILED AJAX PAYLOAD LOGGING FOR PRICING DEBUG
+                var ajaxPayload = {
                     action: 'zlaark_add_subscription_to_cart',
                     product_id: productId,
                     subscription_type: subscriptionType,
                     quantity: 1,
                     nonce: nonce
-                });
-                console.log('Zlaark: Sending dual-button AJAX request');
+                };
+
+                console.log('=== AJAX REQUEST DEBUG ===');
+                console.log('AJAX URL:', ajaxUrl);
+                console.log('AJAX Payload:', ajaxPayload);
+                console.log('Subscription Type being sent:', subscriptionType);
+                console.log('Expected behavior:');
+                console.log('- If subscription_type = "trial" -> should use trial pricing (₹99)');
+                console.log('- If subscription_type = "regular" -> should use full subscription pricing');
+                console.log('=== SENDING REQUEST ===');
                 $.ajax({
                     url: ajaxUrl,
                     type: 'POST',
-                    data: {
-                        action: 'zlaark_add_subscription_to_cart',
-                        product_id: productId,
-                        subscription_type: subscriptionType,
-                        quantity: 1,
-                        nonce: nonce
-                    },
+                    data: ajaxPayload,
                     success: function (response) {
+                        console.log('=== AJAX RESPONSE DEBUG ===');
+                        console.log('Raw response:', response);
+                        console.log('Response success:', response && response.success);
+                        console.log('Response data:', response && response.data);
+                        console.log('=== END RESPONSE DEBUG ===');
                         console.log('Zlaark: Dual-button AJAX success handler, response:', response);
                         clearTimeout(safetyTimer);
                         if (response && response.success) {

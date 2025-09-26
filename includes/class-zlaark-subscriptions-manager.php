@@ -69,7 +69,10 @@ class ZlaarkSubscriptionsManager {
         // Modify cart for subscription products
         add_filter('woocommerce_add_cart_item_data', array($this, 'add_subscription_cart_item_data'), 10, 3);
         add_filter('woocommerce_get_cart_item_from_session', array($this, 'get_subscription_cart_item_from_session'), 10, 3);
-        
+
+        // CRITICAL: Modify cart item price based on subscription type (trial vs regular)
+        add_action('woocommerce_before_calculate_totals', array($this, 'modify_subscription_cart_item_prices'), 10, 1);
+
         // Handle subscription checkout
         add_action('woocommerce_checkout_create_order_line_item', array($this, 'add_subscription_order_item_meta'), 10, 4);
     }
@@ -426,7 +429,7 @@ class ZlaarkSubscriptionsManager {
      */
     public function add_subscription_cart_item_data($cart_item_data, $product_id, $variation_id) {
         $product = wc_get_product($product_id);
-        
+
         if ($product && $product->get_type() === 'subscription') {
             $cart_item_data['is_subscription'] = true;
             $cart_item_data['subscription_data'] = array(
@@ -435,8 +438,27 @@ class ZlaarkSubscriptionsManager {
                 'billing_interval' => $product->get_billing_interval(),
                 'has_trial' => $product->has_trial()
             );
+
+            // PRESERVE SUBSCRIPTION TYPE FROM AJAX REQUEST
+            // This is crucial for pricing - trial vs regular subscription
+            if (isset($cart_item_data['subscription_type'])) {
+                $cart_item_data['subscription_data']['subscription_type'] = $cart_item_data['subscription_type'];
+                error_log('Zlaark: Preserving subscription_type in cart data: ' . $cart_item_data['subscription_type']);
+            } else {
+                // Fallback: check POST data for subscription type
+                if (isset($_POST['subscription_type'])) {
+                    $cart_item_data['subscription_type'] = sanitize_text_field($_POST['subscription_type']);
+                    $cart_item_data['subscription_data']['subscription_type'] = $cart_item_data['subscription_type'];
+                    error_log('Zlaark: Setting subscription_type from POST data: ' . $cart_item_data['subscription_type']);
+                } else {
+                    // Default to regular if not specified
+                    $cart_item_data['subscription_type'] = 'regular';
+                    $cart_item_data['subscription_data']['subscription_type'] = 'regular';
+                    error_log('Zlaark: Defaulting subscription_type to regular');
+                }
+            }
         }
-        
+
         return $cart_item_data;
     }
     
@@ -458,6 +480,56 @@ class ZlaarkSubscriptionsManager {
     }
     
     /**
+     * CRITICAL: Modify subscription cart item prices based on subscription type
+     * This is where trial vs regular pricing is applied
+     *
+     * @param WC_Cart $cart
+     */
+    public function modify_subscription_cart_item_prices($cart) {
+        if (is_admin() && !defined('DOING_AJAX')) {
+            return;
+        }
+
+        foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
+            if (isset($cart_item['is_subscription']) && $cart_item['is_subscription']) {
+                $subscription_type = isset($cart_item['subscription_type']) ? $cart_item['subscription_type'] : 'regular';
+                $subscription_data = isset($cart_item['subscription_data']) ? $cart_item['subscription_data'] : array();
+
+                // Override subscription type from subscription_data if available
+                if (isset($subscription_data['subscription_type'])) {
+                    $subscription_type = $subscription_data['subscription_type'];
+                }
+
+                error_log('=== CART PRICE MODIFICATION DEBUG ===');
+                error_log('Cart item key: ' . $cart_item_key);
+                error_log('Subscription type: ' . $subscription_type);
+                error_log('Available subscription data: ' . print_r($subscription_data, true));
+
+                $product = $cart_item['data'];
+                $new_price = null;
+
+                if ($subscription_type === 'trial' && isset($subscription_data['trial_price'])) {
+                    $new_price = $subscription_data['trial_price'];
+                    error_log('Setting TRIAL price: ' . $new_price);
+                } elseif ($subscription_type === 'regular' && isset($subscription_data['recurring_price'])) {
+                    $new_price = $subscription_data['recurring_price'];
+                    error_log('Setting REGULAR price: ' . $new_price);
+                } else {
+                    error_log('WARNING: Could not determine price for subscription_type: ' . $subscription_type);
+                }
+
+                if ($new_price !== null) {
+                    $product->set_price($new_price);
+                    error_log('Price set to: ' . $new_price . ' for subscription_type: ' . $subscription_type);
+                } else {
+                    error_log('ERROR: No price could be determined!');
+                }
+                error_log('=== END CART PRICE MODIFICATION DEBUG ===');
+            }
+        }
+    }
+
+    /**
      * Add subscription order item meta
      *
      * @param WC_Order_Item_Product $item
@@ -469,6 +541,11 @@ class ZlaarkSubscriptionsManager {
         if (isset($values['is_subscription']) && $values['is_subscription']) {
             $item->add_meta_data('_is_subscription', 'yes');
             $item->add_meta_data('_subscription_data', $values['subscription_data']);
+
+            // Also store the subscription type for reference
+            if (isset($values['subscription_type'])) {
+                $item->add_meta_data('_subscription_type', $values['subscription_type']);
+            }
         }
     }
 }

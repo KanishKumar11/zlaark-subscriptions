@@ -1660,6 +1660,16 @@ class ZlaarkSubscriptionsFrontend {
         $subscription_type = sanitize_text_field($_POST['subscription_type']);
         $quantity = intval($_POST['quantity']) ?: 1;
 
+        // ENHANCED DEBUG LOGGING FOR PRICING ISSUE
+        error_log('=== ZLAARK AJAX HANDLER DEBUG ===');
+        error_log('Received POST data: ' . print_r($_POST, true));
+        error_log('Product ID: ' . $product_id);
+        error_log('Subscription Type: ' . $subscription_type);
+        error_log('Quantity: ' . $quantity);
+        error_log('User ID: ' . get_current_user_id());
+        error_log('Expected: trial = trial pricing, regular = full pricing');
+        error_log('=== END AJAX HANDLER DEBUG ===');
+
         // Debug logging
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('Zlaark Subscriptions: AJAX add to cart - Product ID: ' . $product_id . ', Type: ' . $subscription_type . ', User ID: ' . get_current_user_id());
@@ -1725,6 +1735,19 @@ class ZlaarkSubscriptionsFrontend {
         $cart_item_data = array(
             'subscription_type' => $subscription_type
         );
+
+        // ENHANCED LOGGING FOR CART ADDITION
+        error_log('=== CART ADDITION DEBUG ===');
+        error_log('Cart item data being passed: ' . print_r($cart_item_data, true));
+        error_log('Subscription type in cart data: ' . $subscription_type);
+
+        // Get product pricing info for comparison
+        $product = wc_get_product($product_id);
+        if ($product && method_exists($product, 'get_trial_price') && method_exists($product, 'get_recurring_price')) {
+            error_log('Product trial price: ' . $product->get_trial_price());
+            error_log('Product recurring price: ' . $product->get_recurring_price());
+        }
+        error_log('=== END CART ADDITION DEBUG ===');
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('Zlaark Subscriptions: Attempting to add to cart - Product: ' . $product_id . ', Type: ' . $subscription_type . ', Quantity: ' . $quantity);
