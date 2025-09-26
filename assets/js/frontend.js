@@ -620,42 +620,7 @@
             setTimeout(bindHandlers, 50);
             setTimeout(bindHandlers, 300);
 
-            // Additional direct binding test - this should help identify if the issue is with event delegation
-            setTimeout(function () {
-                console.log('Zlaark: Setting up direct click handlers...');
-                $(buttonSelector).each(function () {
-                    var $btn = $(this);
-                    console.log('Zlaark: Adding direct click handler to button:', this);
-
-                    // Remove any existing direct handlers first
-                    $btn.off('click.zlaarkDirect');
-
-                    // Add VERY simple direct click handler for testing
-                    $btn.on('click.zlaarkDirect', function (e) {
-                        console.log('Zlaark: DIRECT click handler triggered!', this, e);
-                        alert('Direct click handler worked! Button: ' + this.className);
-
-                        // Prevent form submission for submit buttons
-                        if ($(this).attr('type') === 'submit') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        }
-                        // Call the same processor
-                        processButtonClick(e, this);
-                    });
-
-                    // Also add a simple test click handler that doesn't prevent anything
-                    $btn.on('click.zlaarkTest', function (e) {
-                        console.log('Zlaark: TEST click handler (no prevention):', this.className);
-                    });
-                });
-
-                // Test if jQuery click simulation works
-                setTimeout(function () {
-                    console.log('Zlaark: Testing programmatic click...');
-                    $(buttonSelector).first().trigger('click');
-                }, 1000);
-            }, 500);
+            // Direct binding test and programmatic click disabled for manual testing
 
             // Capture-phase logger to detect swallowed clicks
             try {
