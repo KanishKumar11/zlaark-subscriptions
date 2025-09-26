@@ -346,7 +346,15 @@ if ($product->is_in_stock()) :
     console.log('Zlaark: Template JS tag reached');
 
     jQuery(document).ready(function($) {
-        console.log('Zlaark: Initializing AJAX subscription buttons...');
+        console.log('Zlaark: Template JS reached');
+
+        // Check if frontend.js has already initialized the buttons
+        if (window.ZlaarkSubscriptionsFrontend) {
+            console.log('Zlaark: Frontend.js detected - skipping template initialization to prevent conflicts');
+            return;
+        }
+
+        console.log('Zlaark: Frontend.js not detected - initializing template buttons as fallback');
 
         // Enhanced dual button system with AJAX handling
         function initSubscriptionButtons() {
@@ -368,7 +376,7 @@ if ($product->is_in_stock()) :
                                '<?php echo esc_js($product->get_id()); ?>';
 
                 // Debug logging
-                console.log('Zlaark: AJAX Button clicked', {
+                console.log('Zlaark: Template AJAX Button clicked', {
                     type: subscriptionType,
                     productId: productId,
                     buttonElement: $button[0],

@@ -376,16 +376,50 @@
 
             try { console.log('Zlaark: initDualButtons binding; buttons found', $('.trial-button, .regular-button').length); } catch (e) { }
 
+            // Enhanced debugging: Check button visibility and properties
+            $('.trial-button, .regular-button').each(function (index) {
+                var $btn = $(this);
+                console.log('Zlaark: Button ' + index + ' analysis:', {
+                    element: this,
+                    visible: $btn.is(':visible'),
+                    display: $btn.css('display'),
+                    opacity: $btn.css('opacity'),
+                    zIndex: $btn.css('z-index'),
+                    position: $btn.css('position'),
+                    pointerEvents: $btn.css('pointer-events'),
+                    disabled: $btn.prop('disabled'),
+                    classes: this.className,
+                    dataAttrs: {
+                        subscriptionType: $btn.data('subscription-type'),
+                        productId: $btn.data('product-id')
+                    }
+                });
+            });
+
             // Ensure no duplicate handlers (full selector)
             var selector = '.trial-button, .regular-button, [data-subscription-type]';
             var bindHandlers = function () {
                 console.log('Zlaark: bindHandlers running, binding events for selector:', selector);
                 $(document).off('click.zlaarkSub touchstart.zlaarkSub pointerdown.zlaarkSub keydown.zlaarkSub', selector);
                 $(document)
-                    .on('click.zlaarkSub', selector, function (e) { processButtonClick(e, this); })
-                    .on('touchstart.zlaarkSub', selector, function (e) { processButtonClick(e, this); })
-                    .on('pointerdown.zlaarkSub', selector, function (e) { processButtonClick(e, this); })
-                    .on('keydown.zlaarkSub', selector, function (e) { if (e.key === 'Enter' || e.key === ' ') { processButtonClick(e, this); } });
+                    .on('click.zlaarkSub', selector, function (e) {
+                        console.log('Zlaark: Click event triggered on:', this, 'Event:', e);
+                        processButtonClick(e, this);
+                    })
+                    .on('touchstart.zlaarkSub', selector, function (e) {
+                        console.log('Zlaark: Touch event triggered on:', this, 'Event:', e);
+                        processButtonClick(e, this);
+                    })
+                    .on('pointerdown.zlaarkSub', selector, function (e) {
+                        console.log('Zlaark: Pointer event triggered on:', this, 'Event:', e);
+                        processButtonClick(e, this);
+                    })
+                    .on('keydown.zlaarkSub', selector, function (e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            console.log('Zlaark: Keyboard event triggered on:', this, 'Event:', e);
+                            processButtonClick(e, this);
+                        }
+                    });
             };
 
             // Unified processor with idempotency guard
@@ -472,16 +506,54 @@
             setTimeout(bindHandlers, 50);
             setTimeout(bindHandlers, 300);
 
+            // Additional direct binding test - this should help identify if the issue is with event delegation
+            setTimeout(function () {
+                $('.trial-button, .regular-button').each(function () {
+                    var $btn = $(this);
+                    console.log('Zlaark: Adding direct click handler to button:', this);
+
+                    // Remove any existing direct handlers first
+                    $btn.off('click.zlaarkDirect');
+
+                    // Add direct click handler for testing
+                    $btn.on('click.zlaarkDirect', function (e) {
+                        console.log('Zlaark: DIRECT click handler triggered!', this, e);
+                        // Call the same processor
+                        processButtonClick(e, this);
+                    });
+                });
+            }, 500);
+
             // Capture-phase logger to detect swallowed clicks
             try {
                 window.addEventListener('click', function (ev) {
                     var el = ev.target && ev.target.closest ? ev.target.closest(selector) : null;
                     if (el) {
-                        try { console.log('Zlaark: capture click observed on button', el); } catch (e) { }
+                        try {
+                            console.log('Zlaark: capture click observed on button', el);
+                            // Add visual feedback for debugging
+                            $(el).css('border', '3px solid red').delay(1000).queue(function () {
+                                $(this).css('border', '').dequeue();
+                            });
+                        } catch (e) { }
                         processButtonClick(ev, el);
                     }
                 }, true);
             } catch (e) { }
+
+            // Additional debugging: Log all clicks on the page to see if our buttons are being clicked at all
+            $(document).on('click', function (e) {
+                var $target = $(e.target);
+                if ($target.hasClass('trial-button') || $target.hasClass('regular-button') || $target.closest('.trial-button, .regular-button').length) {
+                    console.log('Zlaark: Document click detected on subscription button area:', {
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        closest: $target.closest('.trial-button, .regular-button')[0],
+                        propagationStopped: e.isPropagationStopped(),
+                        defaultPrevented: e.isDefaultPrevented()
+                    });
+                }
+            });
 
             // Re-init after dynamic fragment loads
             $(document).off('wc_fragments_refreshed.zlaark wc_fragments_loaded.zlaark')
