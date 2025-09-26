@@ -593,12 +593,12 @@
                         clearTimeout(safetyTimer);
                         if (response && response.success) {
                             $button.removeClass('loading').addClass('success');
-                            console.log('Zlaark: SUCCESS - Would redirect to:', (response.data && response.data.redirect) || (window.wc_checkout_url) || (window.location.href));
-                            // Redirect disabled for debugging
-                            // setTimeout(function () {
-                            //     var redirect = (response.data && response.data.redirect) || (window.wc_checkout_url) || (window.location.href);
-                            //     window.location.href = redirect;
-                            // }, 600);
+                            console.log('Zlaark: SUCCESS - Redirecting to:', (response.data && response.data.redirect) || (window.wc_checkout_url) || (window.location.href));
+                            // Re-enabled redirect for successful responses
+                            setTimeout(function () {
+                                var redirect = (response.data && response.data.redirect) || (window.wc_checkout_url) || (window.location.href);
+                                window.location.href = redirect;
+                            }, 600);
                         } else {
                             resetUI();
                             var msg = (response && (response.data && response.data.message || response.data)) || 'Failed to add to cart.';
