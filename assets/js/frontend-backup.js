@@ -188,12 +188,9 @@
 
                 var $button = $(this);
                 
-                console.log('Zlaark: Button clicked - disabled:', $button.prop('disabled'), 'classes:', $button[0].className);
-                
                 if ($button.prop('disabled')) {
                     console.warn('Zlaark: button disabled, ignoring');
-                    // Temporarily allow disabled buttons for debugging
-                    // return false;
+                    return false;
                 }
 
                 // Determine subscription type

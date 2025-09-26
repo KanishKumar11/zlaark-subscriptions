@@ -1686,6 +1686,17 @@ class ZlaarkSubscriptionsFrontend {
             ));
         }
 
+        // CRITICAL: Set subscription type context on product IMMEDIATELY
+        // This ensures get_price() calls during cart addition use correct pricing
+        if (method_exists($product, 'set_subscription_type_context')) {
+            $product->set_subscription_type_context($subscription_type);
+            error_log('AJAX Handler: Set subscription type context on product: ' . $subscription_type);
+
+            // Verify the context is working
+            $contextual_price = $product->get_price();
+            error_log('AJAX Handler: Product price with context: ' . $contextual_price);
+        }
+
         // Check if user is logged in
         if (!is_user_logged_in()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -1744,13 +1755,21 @@ class ZlaarkSubscriptionsFrontend {
         // Get product pricing info for comparison
         $product = wc_get_product($product_id);
         if ($product && method_exists($product, 'get_trial_price') && method_exists($product, 'get_recurring_price')) {
+            error_log('=== PRODUCT PRICING ANALYSIS ===');
             error_log('Product trial price: ' . $product->get_trial_price());
             error_log('Product recurring price: ' . $product->get_recurring_price());
             error_log('Product regular price: ' . $product->get_regular_price());
             error_log('Product sale price: ' . $product->get_sale_price());
             error_log('Product price: ' . $product->get_price());
+            
+            // Check if both prices are the same (this might be the issue!)
+            if ($product->get_trial_price() === $product->get_recurring_price()) {
+                error_log('WARNING: Trial price and recurring price are the SAME! This might explain why both buttons show ₹99');
+            }
+            
+            error_log('Expected behavior: subscription_type "' . $subscription_type . '" should set price to ' . ($subscription_type === 'trial' ? $product->get_trial_price() : $product->get_recurring_price()));
+            error_log('=== END PRODUCT PRICING ANALYSIS ===');
         }
-        error_log('Expected behavior: subscription_type "' . $subscription_type . '" should set price to ' . ($subscription_type === 'trial' ? $product->get_trial_price() : $product->get_recurring_price()));
         error_log('=== END CART ADDITION DEBUG ===');
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -1776,7 +1795,9 @@ class ZlaarkSubscriptionsFrontend {
                     } elseif ($subscription_type === 'regular' && method_exists($product_obj, 'get_recurring_price')) {
                         $correct_price = $product_obj->get_recurring_price();
                         error_log('FORCING REGULAR PRICE: ' . $correct_price);
+                        error_log('Price before set_price: ' . $product_obj->get_price());
                         $product_obj->set_price($correct_price);
+                        error_log('Price after set_price: ' . $product_obj->get_price());
                     }
                 }
             }
@@ -1799,13 +1820,28 @@ class ZlaarkSubscriptionsFrontend {
             error_log('Cart total after recalculation: ' . WC()->cart->get_cart_total());
             error_log('=== END POST-ADDITION CART DEBUG ===');
 
+            // Get product for pricing debug info
+            $product_debug = wc_get_product($product_id);
+            $debug_info = array();
+            if ($product_debug && method_exists($product_debug, 'get_trial_price')) {
+                $debug_info = array(
+                    'trial_price' => $product_debug->get_trial_price(),
+                    'recurring_price' => $product_debug->get_recurring_price(),
+                    'regular_price' => $product_debug->get_regular_price(),
+                    'current_price' => $product_debug->get_price(),
+                    'subscription_type_sent' => $subscription_type,
+                    'same_price_issue' => ($product_debug->get_trial_price() == $product_debug->get_recurring_price())
+                );
+            }
+
             // Success response
             wp_send_json_success(array(
                 'message' => __('Product added to cart successfully.', 'zlaark-subscriptions'),
                 'redirect' => wc_get_checkout_url(),
                 'cart_count' => WC()->cart->get_cart_contents_count(),
                 'cart_total' => WC()->cart->get_cart_total(),
-                'cart_item_key' => $cart_item_key
+                'cart_item_key' => $cart_item_key,
+                'debug_pricing' => $debug_info
             ));
         } else {
             if (defined('WP_DEBUG') && WP_DEBUG) {

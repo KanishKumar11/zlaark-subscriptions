@@ -59,10 +59,8 @@ class ZlaarkSubscriptionsTrialService {
         // Display trial type in cart
         add_filter('woocommerce_get_item_data', array($this, 'display_trial_type_in_cart'), 10, 2);
 
-        // Modify cart item price for trials
-        add_action('woocommerce_before_calculate_totals', array($this, 'modify_cart_item_price'));
-
-        // Validate trial eligibility before checkout
+        // Modify cart for subscription products
+        add_action('woocommerce_before_calculate_totals', array($this, 'modify_cart_item_price'));        // Validate trial eligibility before checkout
         add_action('woocommerce_checkout_process', array($this, 'validate_trial_eligibility_checkout'));
         
         // Add subscription type to order item meta
@@ -435,9 +433,11 @@ class ZlaarkSubscriptionsTrialService {
         error_log('=== CART PRICE MODIFICATION DEBUG ===');
         error_log('Cart items count: ' . count($cart->get_cart()));
 
-        foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
+        // Access cart items by reference to ensure modifications stick
+        $cart_contents = $cart->get_cart();
+        
+        foreach ($cart_contents as $cart_item_key => $cart_item) {
             error_log('Processing cart item: ' . $cart_item_key);
-            error_log('Cart item data: ' . print_r($cart_item, true));
 
             if (isset($cart_item['subscription_type'])) {
                 $product = $cart_item['data'];
@@ -452,13 +452,15 @@ class ZlaarkSubscriptionsTrialService {
                     if ($subscription_type === 'trial' && method_exists($product, 'get_trial_price')) {
                         // Set trial price
                         $trial_price = $product->get_trial_price();
-                        error_log('Setting TRIAL price: ' . $trial_price);
-                        $cart_item['data']->set_price($trial_price);
+                        error_log('Setting TRIAL price: ' . $trial_price . ' (was: ' . $product->get_price() . ')');
+                        $product->set_price($trial_price);
+                        error_log('Price after setting: ' . $product->get_price());
                     } elseif ($subscription_type === 'regular' && method_exists($product, 'get_recurring_price')) {
                         // Set regular subscription price
                         $recurring_price = $product->get_recurring_price();
-                        error_log('Setting REGULAR price: ' . $recurring_price);
-                        $cart_item['data']->set_price($recurring_price);
+                        error_log('Setting REGULAR price: ' . $recurring_price . ' (was: ' . $product->get_price() . ')');
+                        $product->set_price($recurring_price);
+                        error_log('Price after setting: ' . $product->get_price());
                     } else {
                         error_log('No price modification - subscription_type: ' . $subscription_type . ', has_trial_price: ' . method_exists($product, 'get_trial_price') . ', has_recurring_price: ' . method_exists($product, 'get_recurring_price'));
                     }

@@ -276,18 +276,136 @@ class WC_Product_Subscription extends WC_Product {
     }
 
     /**
-     * Get the product price for WooCommerce
+     * Get the product price for WooCommerce - CONTEXT AWARE VERSION
      *
      * @param string $context
      * @return string
      */
     public function get_price($context = 'view') {
-        // For subscriptions, the initial price is what matters for purchasability
-        if ($this->has_trial()) {
+        // CRITICAL FIX: Check for subscription type context from cart or request
+        $subscription_type = $this->get_subscription_type_context();
+
+        error_log('=== PRODUCT GET_PRICE DEBUG ===');
+        error_log('Product ID: ' . $this->get_id());
+        error_log('Context: ' . $context);
+        error_log('Subscription type context: ' . $subscription_type);
+        error_log('Has trial: ' . ($this->has_trial() ? 'yes' : 'no'));
+        error_log('Trial price: ' . $this->get_trial_price());
+        error_log('Recurring price: ' . $this->get_recurring_price());
+
+        // If we have explicit subscription type context, use it
+        if ($subscription_type === 'trial' && $this->has_trial()) {
+            error_log('Returning TRIAL price: ' . $this->get_trial_price());
             return $this->get_trial_price();
-        } else {
+        } elseif ($subscription_type === 'regular') {
+            error_log('Returning REGULAR price: ' . $this->get_recurring_price());
             return $this->get_recurring_price();
         }
+
+        // Fallback to original logic only if no context is available
+        if ($this->has_trial()) {
+            error_log('Fallback: Returning trial price (no context): ' . $this->get_trial_price());
+            return $this->get_trial_price();
+        } else {
+            error_log('Fallback: Returning recurring price (no trial): ' . $this->get_recurring_price());
+            return $this->get_recurring_price();
+        }
+    }
+
+    /**
+     * CRITICAL: Get subscription type context from various sources
+     * This determines whether we should use trial or regular pricing
+     *
+     * @return string|null 'trial', 'regular', or null if no context
+     */
+    private function get_subscription_type_context() {
+        // Priority 1: Check if we're in an AJAX request with subscription_type
+        if (defined('DOING_AJAX') && DOING_AJAX && isset($_POST['subscription_type'])) {
+            $type = sanitize_text_field($_POST['subscription_type']);
+            error_log('Subscription type from AJAX POST: ' . $type);
+            return $type;
+        }
+
+        // Priority 2: Check cart items for this product's subscription type
+        if (function_exists('WC') && WC()->cart) {
+            foreach (WC()->cart->get_cart() as $cart_item) {
+                if ($cart_item['product_id'] == $this->get_id() || $cart_item['data']->get_id() == $this->get_id()) {
+                    if (isset($cart_item['subscription_type'])) {
+                        error_log('Subscription type from cart item: ' . $cart_item['subscription_type']);
+                        return $cart_item['subscription_type'];
+                    }
+                    if (isset($cart_item['subscription_data']['subscription_type'])) {
+                        error_log('Subscription type from cart subscription_data: ' . $cart_item['subscription_data']['subscription_type']);
+                        return $cart_item['subscription_data']['subscription_type'];
+                    }
+                }
+            }
+        }
+
+        // Priority 3: Check global POST data (form submissions)
+        if (isset($_POST['subscription_type'])) {
+            $type = sanitize_text_field($_POST['subscription_type']);
+            error_log('Subscription type from global POST: ' . $type);
+            return $type;
+        }
+
+        // Priority 4: Check if there's a temporary context stored in the product
+        if ($this->get_meta('_temp_subscription_type', true)) {
+            $type = $this->get_meta('_temp_subscription_type', true);
+            error_log('Subscription type from product meta: ' . $type);
+            return $type;
+        }
+
+        error_log('No subscription type context found, returning null');
+        return null;
+    }
+
+    /**
+     * Set temporary subscription type context for pricing
+     * This allows external code to influence pricing decisions
+     *
+     * @param string $type 'trial' or 'regular'
+     */
+    public function set_subscription_type_context($type) {
+        $this->update_meta_data('_temp_subscription_type', $type);
+        error_log('Set temporary subscription type context: ' . $type);
+    }
+
+    /**
+     * Clear temporary subscription type context
+     */
+    public function clear_subscription_type_context() {
+        $this->delete_meta_data('_temp_subscription_type');
+        error_log('Cleared temporary subscription type context');
+    }
+
+    /**
+     * Test function to verify pricing logic
+     * This can be called to test if the context-aware pricing is working
+     */
+    public function test_pricing_context() {
+        $results = array();
+
+        // Test trial context
+        $this->set_subscription_type_context('trial');
+        $trial_price = $this->get_price();
+        $results['trial_context_price'] = $trial_price;
+
+        // Test regular context
+        $this->set_subscription_type_context('regular');
+        $regular_price = $this->get_price();
+        $results['regular_context_price'] = $regular_price;
+
+        // Clear context
+        $this->clear_subscription_type_context();
+        $default_price = $this->get_price();
+        $results['default_price'] = $default_price;
+
+        $results['trial_price_method'] = $this->get_trial_price();
+        $results['recurring_price_method'] = $this->get_recurring_price();
+        $results['has_trial'] = $this->has_trial();
+
+        return $results;
     }
 
     /**

@@ -71,7 +71,11 @@ class ZlaarkSubscriptionsManager {
         add_filter('woocommerce_get_cart_item_from_session', array($this, 'get_subscription_cart_item_from_session'), 10, 3);
 
         // CRITICAL: Modify cart item price based on subscription type (trial vs regular)
-        add_action('woocommerce_before_calculate_totals', array($this, 'modify_subscription_cart_item_prices'), 10, 1);
+        // Use priority 5 to run before other cart modifications
+        add_action('woocommerce_before_calculate_totals', array($this, 'modify_subscription_cart_item_prices'), 5, 1);
+
+        // Additional hook to ensure pricing is applied when cart items are loaded
+        add_action('woocommerce_cart_loaded_from_session', array($this, 'ensure_subscription_pricing_on_load'), 5, 1);
 
         // Handle subscription checkout
         add_action('woocommerce_checkout_create_order_line_item', array($this, 'add_subscription_order_item_meta'), 10, 4);
@@ -439,7 +443,7 @@ class ZlaarkSubscriptionsManager {
                 'has_trial' => $product->has_trial()
             );
 
-            // PRESERVE SUBSCRIPTION TYPE FROM AJAX REQUEST
+            // CRITICAL: PRESERVE SUBSCRIPTION TYPE FROM AJAX REQUEST
             // This is crucial for pricing - trial vs regular subscription
             if (isset($cart_item_data['subscription_type'])) {
                 $cart_item_data['subscription_data']['subscription_type'] = $cart_item_data['subscription_type'];
@@ -456,6 +460,13 @@ class ZlaarkSubscriptionsManager {
                     $cart_item_data['subscription_data']['subscription_type'] = 'regular';
                     error_log('Zlaark: Defaulting subscription_type to regular');
                 }
+            }
+
+            // CRITICAL: Set the subscription type context on the product instance
+            // This ensures get_price() method has the correct context
+            if (method_exists($product, 'set_subscription_type_context')) {
+                $product->set_subscription_type_context($cart_item_data['subscription_type']);
+                error_log('Zlaark: Set subscription type context on product: ' . $cart_item_data['subscription_type']);
             }
         }
 
@@ -474,14 +485,26 @@ class ZlaarkSubscriptionsManager {
         if (isset($values['is_subscription'])) {
             $session_data['is_subscription'] = $values['is_subscription'];
             $session_data['subscription_data'] = $values['subscription_data'];
+
+            // CRITICAL: Restore subscription type from session
+            if (isset($values['subscription_type'])) {
+                $session_data['subscription_type'] = $values['subscription_type'];
+                error_log('Restored subscription_type from session: ' . $values['subscription_type']);
+
+                // Set context on the product if available
+                if (isset($session_data['data']) && method_exists($session_data['data'], 'set_subscription_type_context')) {
+                    $session_data['data']->set_subscription_type_context($values['subscription_type']);
+                    error_log('Set subscription type context on restored product: ' . $values['subscription_type']);
+                }
+            }
         }
-        
+
         return $session_data;
     }
     
     /**
      * CRITICAL: Modify subscription cart item prices based on subscription type
-     * This is where trial vs regular pricing is applied
+     * This works with the new context-aware product pricing
      *
      * @param WC_Cart $cart
      */
@@ -506,27 +529,74 @@ class ZlaarkSubscriptionsManager {
                 error_log('Available subscription data: ' . print_r($subscription_data, true));
 
                 $product = $cart_item['data'];
-                $new_price = null;
 
-                if ($subscription_type === 'trial' && isset($subscription_data['trial_price'])) {
-                    $new_price = $subscription_data['trial_price'];
-                    error_log('Setting TRIAL price: ' . $new_price);
-                } elseif ($subscription_type === 'regular' && isset($subscription_data['recurring_price'])) {
-                    $new_price = $subscription_data['recurring_price'];
-                    error_log('Setting REGULAR price: ' . $new_price);
+                // CRITICAL: Set the subscription type context on the product
+                // This ensures the product's get_price() method returns the correct price
+                if (method_exists($product, 'set_subscription_type_context')) {
+                    $product->set_subscription_type_context($subscription_type);
+                    error_log('Set subscription type context on product: ' . $subscription_type);
+
+                    // Let the product's get_price() method handle the pricing logic
+                    $contextual_price = $product->get_price();
+                    error_log('Product get_price() with context returned: ' . $contextual_price);
+
+                    // Verify the price is correct
+                    $expected_price = null;
+                    if ($subscription_type === 'trial' && isset($subscription_data['trial_price'])) {
+                        $expected_price = $subscription_data['trial_price'];
+                    } elseif ($subscription_type === 'regular' && isset($subscription_data['recurring_price'])) {
+                        $expected_price = $subscription_data['recurring_price'];
+                    }
+
+                    if ($expected_price !== null && $contextual_price != $expected_price) {
+                        error_log('WARNING: Context-aware price mismatch. Expected: ' . $expected_price . ', Got: ' . $contextual_price);
+                        // Force the correct price as fallback
+                        $product->set_price($expected_price);
+                        error_log('Forced price to: ' . $expected_price);
+                    }
                 } else {
-                    error_log('WARNING: Could not determine price for subscription_type: ' . $subscription_type);
+                    // Fallback to old method if context methods not available
+                    $new_price = null;
+                    if ($subscription_type === 'trial' && isset($subscription_data['trial_price'])) {
+                        $new_price = $subscription_data['trial_price'];
+                    } elseif ($subscription_type === 'regular' && isset($subscription_data['recurring_price'])) {
+                        $new_price = $subscription_data['recurring_price'];
+                    }
+
+                    if ($new_price !== null) {
+                        $product->set_price($new_price);
+                        error_log('Fallback: Set price to: ' . $new_price);
+                    }
                 }
 
-                if ($new_price !== null) {
-                    $product->set_price($new_price);
-                    error_log('Price set to: ' . $new_price . ' for subscription_type: ' . $subscription_type);
-                } else {
-                    error_log('ERROR: No price could be determined!');
-                }
+                error_log('Final product price: ' . $product->get_price());
                 error_log('=== END CART PRICE MODIFICATION DEBUG ===');
             }
         }
+    }
+
+    /**
+     * Ensure subscription pricing is applied when cart is loaded from session
+     * This handles cases where the cart is restored and pricing context might be lost
+     *
+     * @param WC_Cart $cart
+     */
+    public function ensure_subscription_pricing_on_load($cart) {
+        error_log('=== CART LOADED FROM SESSION - ENSURING PRICING ===');
+
+        foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
+            if (isset($cart_item['is_subscription']) && $cart_item['is_subscription']) {
+                $subscription_type = isset($cart_item['subscription_type']) ? $cart_item['subscription_type'] : 'regular';
+                $product = $cart_item['data'];
+
+                if (method_exists($product, 'set_subscription_type_context')) {
+                    $product->set_subscription_type_context($subscription_type);
+                    error_log('Session load: Set context ' . $subscription_type . ' on product ' . $product->get_id());
+                }
+            }
+        }
+
+        error_log('=== END CART LOADED FROM SESSION ===');
     }
 
     /**
