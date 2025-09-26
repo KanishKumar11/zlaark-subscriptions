@@ -187,9 +187,9 @@
                 e.stopPropagation();
 
                 var $button = $(this);
-                
+
                 console.log('Zlaark: Button clicked - disabled:', $button.prop('disabled'), 'classes:', $button[0].className);
-                
+
                 if ($button.prop('disabled')) {
                     console.warn('Zlaark: button disabled, ignoring');
                     // Temporarily allow disabled buttons for debugging
@@ -197,14 +197,14 @@
                 }
 
                 // Determine subscription type
-                var subscriptionType = $button.data('subscription-type') || 
-                                     ($button.hasClass('trial-button') || $button.hasClass('zlaark-trial-btn') ? 'trial' : 'regular');
-                
-                // Get product ID
-                var productId = $button.data('product-id') || $button.val() || 
-                               $button.closest('form').find('input[name="add-to-cart"]').val();
+                var subscriptionType = $button.data('subscription-type') ||
+                    ($button.hasClass('trial-button') || $button.hasClass('zlaark-trial-btn') ? 'trial' : 'regular');
 
-                console.log('Zlaark: Button click', {subscriptionType: subscriptionType, productId: productId});
+                // Get product ID
+                var productId = $button.data('product-id') || $button.val() ||
+                    $button.closest('form').find('input[name="add-to-cart"]').val();
+
+                console.log('Zlaark: Button click', { subscriptionType: subscriptionType, productId: productId });
 
                 if (!productId) {
                     self.showNotice('Unable to determine product ID.', 'error');
@@ -227,7 +227,7 @@
                     },
                     success: function (response) {
                         console.log('Zlaark: AJAX Success', response);
-                        
+
                         // Log pricing debug if available
                         if (response && response.data && response.data.debug_pricing) {
                             console.log('=== PRICING DEBUG ===');
