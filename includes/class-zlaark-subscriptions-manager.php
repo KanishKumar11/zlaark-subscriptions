@@ -381,6 +381,10 @@ class ZlaarkSubscriptionsManager {
      * @return bool
      */
     public function validate_subscription_cart($passed, $product_id, $quantity) {
+        // Bypass validation during AJAX subscription add-to-cart requests
+        if (defined('DOING_AJAX') && DOING_AJAX && isset($_POST['action']) && $_POST['action'] === 'zlaark_add_subscription_to_cart') {
+            return $passed;
+        }
         $product = wc_get_product($product_id);
         
         if (!$product || $product->get_type() !== 'subscription') {

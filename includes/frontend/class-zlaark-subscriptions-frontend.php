@@ -633,6 +633,10 @@ class ZlaarkSubscriptionsFrontend {
             error_log('Zlaark Subscriptions: POST data: ' . print_r($_POST, true));
         }
 
+        // Bypass validation during AJAX subscription add-to-cart so cart clear logic can run
+        if (defined('DOING_AJAX') && DOING_AJAX && isset($_POST['action']) && $_POST['action'] === 'zlaark_add_subscription_to_cart') {
+            return $passed;
+        }
         // Check if user is logged in
         if (!is_user_logged_in()) {
             wc_add_notice(__('You must be logged in to purchase a subscription.', 'zlaark-subscriptions'), 'error');

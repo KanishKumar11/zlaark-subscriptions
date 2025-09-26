@@ -932,9 +932,9 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 24px;
+    padding: 12px 24px !important;
     border: none;
-    border-radius: 6px;
+    border-radius: 6px !important;
     font-size: 16px;
     font-weight: 600;
     text-decoration: none;
@@ -960,7 +960,7 @@
 
 .zlaark-subscription-btn {
     background: #927397 !important;
-    color: white;
+    color: white !important;
     box-shadow: 0 4px 15px rgba(146, 115, 151, 0.3);
 }
 
