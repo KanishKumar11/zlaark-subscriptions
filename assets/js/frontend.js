@@ -232,21 +232,39 @@
         },
 
         handleShortcodeButtonClick: function (e) {
+            console.log('Zlaark: handleShortcodeButtonClick triggered', this, e);
+
             var $button = $(this);
             var $form = $button.closest('form');
+
+            // Check if this should be handled by the dual button system instead
+            if ($button.hasClass('trial-button') || $button.hasClass('subscription-button')) {
+                console.log('Zlaark: Shortcode button also has dual-button class, letting dual-button system handle it');
+                return; // Let the dual button system handle it
+            }
+
+            console.log('Zlaark: Processing shortcode button click');
 
             // Add loading state
             $button.addClass('loading').prop('disabled', true);
 
             // Add visual feedback
-            var originalText = $button.find('.button-text').text();
-            $button.find('.button-text').text('Processing...');
+            var originalText = $button.find('.button-text').text() || $button.text();
+            if ($button.find('.button-text').length) {
+                $button.find('.button-text').text('Processing...');
+            } else {
+                $button.text('Processing...');
+            }
 
             // Let the form submit naturally, but provide feedback
             setTimeout(function () {
                 if ($button.hasClass('loading')) {
                     $button.removeClass('loading').prop('disabled', false);
-                    $button.find('.button-text').text(originalText);
+                    if ($button.find('.button-text').length) {
+                        $button.find('.button-text').text(originalText);
+                    } else {
+                        $button.text(originalText);
+                    }
                 }
             }, 3000);
         },
@@ -374,10 +392,22 @@
             var ajaxUrl = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.ajax_url) || (window.ajaxurl) || '/wp-admin/admin-ajax.php';
             var nonce = (window.zlaark_subscriptions_frontend && zlaark_subscriptions_frontend.nonce) || '';
 
-            try { console.log('Zlaark: initDualButtons binding; buttons found', $('.trial-button, .regular-button').length); } catch (e) { }
+            // Updated selectors to match actual HTML classes - COMPREHENSIVE selector
+            var buttonSelector = '.trial-button, .regular-button, .subscription-button, .zlaark-trial-btn, .zlaark-subscription-btn, [data-subscription-type]';
+
+            console.log('Zlaark: initDualButtons starting with selector:', buttonSelector);
+            console.log('Zlaark: Buttons found with selector:', $(buttonSelector).length);
+
+            // Test each part of the selector individually
+            console.log('Zlaark: .trial-button found:', $('.trial-button').length);
+            console.log('Zlaark: .regular-button found:', $('.regular-button').length);
+            console.log('Zlaark: .subscription-button found:', $('.subscription-button').length);
+            console.log('Zlaark: .zlaark-trial-btn found:', $('.zlaark-trial-btn').length);
+            console.log('Zlaark: .zlaark-subscription-btn found:', $('.zlaark-subscription-btn').length);
+            console.log('Zlaark: [data-subscription-type] found:', $('[data-subscription-type]').length);
 
             // Enhanced debugging: Check button visibility and properties
-            $('.trial-button, .regular-button').each(function (index) {
+            $(buttonSelector).each(function (index) {
                 var $btn = $(this);
                 console.log('Zlaark: Button ' + index + ' analysis:', {
                     element: this,
@@ -389,6 +419,7 @@
                     pointerEvents: $btn.css('pointer-events'),
                     disabled: $btn.prop('disabled'),
                     classes: this.className,
+                    type: $btn.attr('type'),
                     dataAttrs: {
                         subscriptionType: $btn.data('subscription-type'),
                         productId: $btn.data('product-id')
@@ -396,14 +427,19 @@
                 });
             });
 
-            // Ensure no duplicate handlers (full selector)
-            var selector = '.trial-button, .regular-button, [data-subscription-type]';
+            // Use the same selector variable for consistency
+            var selector = buttonSelector;
             var bindHandlers = function () {
                 console.log('Zlaark: bindHandlers running, binding events for selector:', selector);
                 $(document).off('click.zlaarkSub touchstart.zlaarkSub pointerdown.zlaarkSub keydown.zlaarkSub', selector);
                 $(document)
                     .on('click.zlaarkSub', selector, function (e) {
                         console.log('Zlaark: Click event triggered on:', this, 'Event:', e);
+                        // Prevent form submission for submit buttons
+                        if ($(this).attr('type') === 'submit') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
                         processButtonClick(e, this);
                     })
                     .on('touchstart.zlaarkSub', selector, function (e) {
@@ -440,8 +476,61 @@
                 if (e) { try { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); } catch (_) { } }
                 if ($button.prop('disabled')) { try { console.warn('Zlaark: button disabled, ignoring'); } catch (_) { } return false; }
 
-                var subscriptionType = $button.data('subscription-type') || $button.data('subscriptionType') || $button.attr('data-subscription-type') || ($('#subscription_type').val() || 'regular');
-                var productId = $button.data('product-id') || $button.data('product_id') || $button.attr('data-product-id') || $button.val() || $button.attr('value') || $button.closest('form').find('input[name="add-to-cart"]').val() || $button.closest('form').find('#zlaark_add_to_cart_product_id').val() || $button.closest('form').find('input[name="product_id"]').val() || '';
+                // Enhanced subscription type detection for shortcode buttons
+                var subscriptionType = $button.data('subscription-type') || $button.data('subscriptionType') || $button.attr('data-subscription-type');
+
+                console.log('Zlaark: Initial subscription type from data attributes:', subscriptionType);
+                console.log('Zlaark: Button classes:', $button[0].className);
+                console.log('Zlaark: Button class checks:', {
+                    hasTrialBtn: $button.hasClass('zlaark-trial-btn'),
+                    hasTrialButton: $button.hasClass('trial-button'),
+                    hasSubscriptionBtn: $button.hasClass('zlaark-subscription-btn'),
+                    hasSubscriptionButton: $button.hasClass('subscription-button'),
+                    hasRegularButton: $button.hasClass('regular-button')
+                });
+
+                // Detect subscription type from button classes if not in data attributes
+                // PRIORITY ORDER: Most specific classes first
+                if (!subscriptionType) {
+                    if ($button.hasClass('zlaark-subscription-btn')) {
+                        subscriptionType = 'regular';
+                        console.log('Zlaark: Detected as REGULAR from zlaark-subscription-btn class');
+                    } else if ($button.hasClass('zlaark-trial-btn')) {
+                        subscriptionType = 'trial';
+                        console.log('Zlaark: Detected as TRIAL from zlaark-trial-btn class');
+                    } else if ($button.hasClass('subscription-button')) {
+                        subscriptionType = 'regular';
+                        console.log('Zlaark: Detected as REGULAR from subscription-button class');
+                    } else if ($button.hasClass('trial-button')) {
+                        subscriptionType = 'trial';
+                        console.log('Zlaark: Detected as TRIAL from trial-button class');
+                    } else if ($button.hasClass('regular-button')) {
+                        subscriptionType = 'regular';
+                        console.log('Zlaark: Detected as REGULAR from regular-button class');
+                    } else {
+                        // Check hidden input in the form
+                        var formSubscriptionType = $button.closest('form').find('input[name="subscription_type"]').val();
+                        if (formSubscriptionType) {
+                            subscriptionType = formSubscriptionType;
+                            console.log('Zlaark: Detected from form hidden input:', subscriptionType);
+                        } else {
+                            subscriptionType = $('#subscription_type').val() || 'regular';
+                            console.log('Zlaark: Defaulted to:', subscriptionType);
+                        }
+                    }
+                } else {
+                    console.log('Zlaark: Using subscription type from data attribute:', subscriptionType);
+                }
+
+                console.log('Zlaark: Final subscription type determined:', subscriptionType);
+
+                // Enhanced product ID detection for shortcode buttons
+                var productId = $button.data('product-id') || $button.data('product_id') || $button.attr('data-product-id') ||
+                    $button.val() || $button.attr('value') ||
+                    $button.closest('form').find('input[name="add-to-cart"]').val() ||
+                    $button.closest('form').find('input[name="product_id"]').val() ||
+                    $button.closest('form').find('#zlaark_add_to_cart_product_id').val() ||
+                    $button.closest('form').find('input[name="zlaark_product_id"]').val() || '';
 
                 try { console.log('Zlaark: DualButton click', { subscriptionType: subscriptionType, productId: productId }); } catch (e) { }
                 if (!productId) { try { console.error('Zlaark: Missing productId for click', $button[0]); } catch (_) { } self.showNotice('Unable to determine product ID.', 'error'); return false; }
@@ -508,20 +597,39 @@
 
             // Additional direct binding test - this should help identify if the issue is with event delegation
             setTimeout(function () {
-                $('.trial-button, .regular-button').each(function () {
+                console.log('Zlaark: Setting up direct click handlers...');
+                $(buttonSelector).each(function () {
                     var $btn = $(this);
                     console.log('Zlaark: Adding direct click handler to button:', this);
 
                     // Remove any existing direct handlers first
                     $btn.off('click.zlaarkDirect');
 
-                    // Add direct click handler for testing
+                    // Add VERY simple direct click handler for testing
                     $btn.on('click.zlaarkDirect', function (e) {
                         console.log('Zlaark: DIRECT click handler triggered!', this, e);
+                        alert('Direct click handler worked! Button: ' + this.className);
+
+                        // Prevent form submission for submit buttons
+                        if ($(this).attr('type') === 'submit') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
                         // Call the same processor
                         processButtonClick(e, this);
                     });
+
+                    // Also add a simple test click handler that doesn't prevent anything
+                    $btn.on('click.zlaarkTest', function (e) {
+                        console.log('Zlaark: TEST click handler (no prevention):', this.className);
+                    });
                 });
+
+                // Test if jQuery click simulation works
+                setTimeout(function () {
+                    console.log('Zlaark: Testing programmatic click...');
+                    $(buttonSelector).first().trigger('click');
+                }, 1000);
             }, 500);
 
             // Capture-phase logger to detect swallowed clicks
@@ -541,16 +649,28 @@
                 }, true);
             } catch (e) { }
 
-            // Additional debugging: Log all clicks on the page to see if our buttons are being clicked at all
+            // GLOBAL click detector - logs ALL clicks to see if our buttons are being clicked at all
             $(document).on('click', function (e) {
+                // Log every single click for debugging
+                console.log('Zlaark: GLOBAL click detected:', {
+                    target: e.target,
+                    targetTag: e.target.tagName,
+                    targetClasses: e.target.className,
+                    targetId: e.target.id
+                });
+
                 var $target = $(e.target);
-                if ($target.hasClass('trial-button') || $target.hasClass('regular-button') || $target.closest('.trial-button, .regular-button').length) {
+                var buttonClasses = '.trial-button, .regular-button, .subscription-button, .zlaark-trial-btn, .zlaark-subscription-btn';
+                if ($target.hasClass('trial-button') || $target.hasClass('regular-button') || $target.hasClass('subscription-button') ||
+                    $target.hasClass('zlaark-trial-btn') || $target.hasClass('zlaark-subscription-btn') ||
+                    $target.closest(buttonClasses).length) {
                     console.log('Zlaark: Document click detected on subscription button area:', {
                         target: e.target,
                         currentTarget: e.currentTarget,
-                        closest: $target.closest('.trial-button, .regular-button')[0],
+                        closest: $target.closest(buttonClasses)[0],
                         propagationStopped: e.isPropagationStopped(),
-                        defaultPrevented: e.isDefaultPrevented()
+                        defaultPrevented: e.isDefaultPrevented(),
+                        targetClasses: e.target.className
                     });
                 }
             });
