@@ -413,6 +413,7 @@ if ($product->is_in_stock()) :
                 // Reset other buttons and set loading state on current
                 $('.trial-button, .regular-button').removeClass('selected loading success').prop('disabled', false).attr('aria-busy', 'false');
                 $button.addClass('selected loading').prop('disabled', true).attr('aria-busy', 'true');
+                console.log('Zlaark: Loading state applied for', subscriptionType, 'subscription');
 
                 console.log('Zlaark: After visual feedback', {
                     buttonVisible: $button.is(':visible'),
@@ -436,6 +437,15 @@ if ($product->is_in_stock()) :
                     hasGlobalConfig: typeof zlaark_subscriptions_frontend !== 'undefined'
                 });
 
+                // Detailed log payload before AJAX request to add to cart
+                console.log('Zlaark: AJAX request payload', {
+                    action: 'zlaark_add_subscription_to_cart',
+                    product_id: productId,
+                    subscription_type: subscriptionType,
+                    quantity: 1,
+                    nonce: ajaxNonce
+                });
+                console.log('Zlaark: Sending AJAX request...');
                 // AJAX request to add to cart
                 $.ajax({
                     url: ajaxUrl,
@@ -449,6 +459,9 @@ if ($product->is_in_stock()) :
                     },
                     success: function(response) {
                         console.log('Zlaark: AJAX Success', response);
+                        // Log detailed response data for debugging
+                        console.log('Zlaark: AJAX response data', response.data);
+                        console.log('Zlaark: Entering success handler, success flag:', response.success);
 
                         // Ensure button is still visible
                         if (!$button.is(':visible')) {
@@ -499,6 +512,7 @@ if ($product->is_in_stock()) :
                         }
                     },
                     error: function(xhr, status, error) {
+                        console.log('Zlaark: Entering error handler');
                         console.error('Zlaark: AJAX Request Failed', {
                             xhr: xhr,
                             status: status,
