@@ -992,3 +992,80 @@
         text-align: center;
     }
 }
+
+/* Manual Payment Styles */
+.pay-now {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: white !important;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.pay-now:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.zlaark-manual-payment-button {
+    margin: 15px 0;
+}
+
+.zlaark-failed-subscriptions {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.subscription-payment-item {
+    margin: 10px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: white;
+}
+
+.woocommerce-subscription-payment {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.subscription-payment-details {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.subscription-payment-details .amount {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #28a745;
+}
+
+.payment-actions {
+    text-align: center;
+    margin: 30px 0;
+}
+
+.payment-actions .pay-button {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.payment-actions .pay-button:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}

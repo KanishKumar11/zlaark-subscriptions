@@ -61,6 +61,7 @@ class ZlaarkSubscriptionsEmails {
         add_action('zlaark_subscription_status_changed', array($this, 'handle_status_change_email'), 10, 3);
         add_action('zlaark_subscription_renewed', array($this, 'send_renewal_success_email'));
         add_action('zlaark_subscription_payment_failed', array($this, 'send_payment_failed_email'), 10, 2);
+        add_action('zlaark_subscription_manual_payment_success', array($this, 'send_admin_manual_payment_notification'), 10, 2);
     }
     
     /**
@@ -415,6 +416,97 @@ class ZlaarkSubscriptionsEmails {
         return ob_get_clean();
     }
     
+    /**
+     * Send manual payment success email
+     *
+     * @param int $subscription_id
+     * @param float $amount
+     */
+    public function send_manual_payment_success_email($subscription_id, $amount) {
+        if (get_option('zlaark_subscriptions_email_notifications') !== 'yes') {
+            return;
+        }
+        
+        $subscription = $this->db->get_subscription($subscription_id);
+        if (!$subscription) {
+            return;
+        }
+        
+        $user = get_user_by('id', $subscription->user_id);
+        $product = wc_get_product($subscription->product_id);
+        
+        if (!$user || !$product) {
+            return;
+        }
+        
+        $subject = sprintf(__('Payment received - %s subscription reactivated', 'zlaark-subscriptions'), $product->get_name());
+        
+        $message = $this->get_email_template('manual_payment_success', array(
+            'user' => $user,
+            'subscription' => $subscription,
+            'product' => $product,
+            'amount' => $amount
+        ));
+        
+        $this->send_email($user->user_email, $subject, $message);
+    }
+
+    /**
+     * Get manual payment URL for subscription
+     *
+     * @param int $subscription_id
+     * @return string
+     */
+    public function get_manual_payment_url($subscription_id) {
+        return wp_nonce_url(
+            add_query_arg(array(
+                'subscription_action' => 'pay_now',
+                'subscription_id' => $subscription_id
+            ), wc_get_account_endpoint_url('subscriptions')),
+            'subscription_action_pay_now_' . $subscription_id
+        );
+    }
+
+    /**
+     * Send admin notification for manual payment success
+     *
+     * @param int $subscription_id
+     * @param int $order_id
+     */
+    public function send_admin_manual_payment_notification($subscription_id, $order_id) {
+        // Check if admin notifications are enabled
+        if (get_option('zlaark_subscriptions_admin_notifications', 'yes') !== 'yes') {
+            return;
+        }
+
+        $subscription = $this->db->get_subscription($subscription_id);
+        if (!$subscription) {
+            return;
+        }
+
+        $order = wc_get_order($order_id);
+        $user = get_user_by('id', $subscription->user_id);
+        $product = wc_get_product($subscription->product_id);
+
+        if (!$order || !$user || !$product) {
+            return;
+        }
+
+        $admin_email = get_option('admin_email');
+        $subject = sprintf(__('[%s] Manual Payment Received - Subscription #%d', 'zlaark-subscriptions'), get_bloginfo('name'), $subscription_id);
+        
+        $message = $this->get_email_template('admin_manual_payment', array(
+            'subscription' => $subscription,
+            'order' => $order,
+            'user' => $user,
+            'product' => $product,
+            'amount' => $order->get_total(),
+            'admin_url' => admin_url('admin.php?page=zlaark-subscriptions&action=view&id=' . $subscription_id)
+        ));
+
+        $this->send_email($admin_email, $subject, $message);
+    }
+
     /**
      * Send email
      *

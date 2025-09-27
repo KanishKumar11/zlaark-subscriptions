@@ -58,6 +58,10 @@ class ZlaarkSubscriptionsMyAccount {
         add_action('init', array($this, 'add_view_subscription_endpoint'));
         add_action('woocommerce_account_view-subscription_endpoint', array($this, 'view_subscription_endpoint_content'));
         
+        // Add pay subscription endpoint
+        add_action('init', array($this, 'add_pay_subscription_endpoint'));
+        add_action('woocommerce_account_pay-subscription_endpoint', array($this, 'pay_subscription_endpoint_content'));
+        
         // Handle subscription actions
         add_action('template_redirect', array($this, 'handle_subscription_actions'));
         
@@ -398,6 +402,19 @@ class ZlaarkSubscriptionsMyAccount {
                     }
                 }
                 break;
+                
+            case 'pay_now':
+                if (in_array($subscription->status, array('failed', 'expired'))) {
+                    // Create manual payment order
+                    $payment_url = $manager->create_manual_payment_order($subscription_id);
+                    if ($payment_url) {
+                        wp_redirect($payment_url);
+                        exit;
+                    } else {
+                        wc_add_notice(__('Failed to create payment order. Please try again.', 'zlaark-subscriptions'), 'error');
+                    }
+                }
+                break;
         }
         
         // Redirect to remove query parameters
@@ -480,6 +497,21 @@ class ZlaarkSubscriptionsMyAccount {
             );
         }
         
+        // Pay Now action for failed/expired subscriptions
+        if (in_array($subscription->status, array('failed', 'expired'))) {
+            $actions['pay_now'] = array(
+                'url' => wp_nonce_url(
+                    add_query_arg(array(
+                        'subscription_action' => 'pay_now',
+                        'subscription_id' => $subscription->id
+                    )),
+                    'subscription_action_pay_now_' . $subscription->id
+                ),
+                'name' => __('Pay Now', 'zlaark-subscriptions'),
+                'class' => 'woocommerce-button button pay-now'
+            );
+        }
+        
         foreach ($actions as $key => $action) {
             echo '<a href="' . esc_url($action['url']) . '" class="' . esc_attr($action['class']) . '">' . esc_html($action['name']) . '</a>';
             if ($key !== array_key_last($actions)) {
@@ -536,6 +568,22 @@ class ZlaarkSubscriptionsMyAccount {
                 'name' => __('Resume Subscription', 'zlaark-subscriptions'),
                 'class' => 'woocommerce-button button resume',
                 'description' => __('Resume your paused subscription and continue billing.', 'zlaark-subscriptions')
+            );
+        }
+        
+        // Pay Now action for failed/expired subscriptions
+        if (in_array($subscription->status, array('failed', 'expired'))) {
+            $actions['pay_now'] = array(
+                'url' => wp_nonce_url(
+                    add_query_arg(array(
+                        'subscription_action' => 'pay_now',
+                        'subscription_id' => $subscription->id
+                    )),
+                    'subscription_action_pay_now_' . $subscription->id
+                ),
+                'name' => __('Pay Now', 'zlaark-subscriptions'),
+                'class' => 'woocommerce-button button pay-now',
+                'description' => __('Make a manual payment to reactivate your subscription.', 'zlaark-subscriptions')
             );
         }
         
@@ -619,6 +667,114 @@ class ZlaarkSubscriptionsMyAccount {
                 </tbody>
             </table>
         </section>
+        <?php
+    }
+
+    /**
+     * Add pay subscription endpoint
+     */
+    public function add_pay_subscription_endpoint() {
+        add_rewrite_endpoint('pay-subscription', EP_ROOT | EP_PAGES);
+    }
+
+    /**
+     * Pay subscription endpoint content
+     *
+     * @param int $subscription_id
+     */
+    public function pay_subscription_endpoint_content($subscription_id) {
+        if (!$subscription_id) {
+            wc_print_notice(__('Invalid subscription ID.', 'zlaark-subscriptions'), 'error');
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        $db = ZlaarkSubscriptionsDatabase::instance();
+        $subscription = $db->get_subscription($subscription_id);
+
+        if (!$subscription || $subscription->user_id != $user_id) {
+            wc_print_notice(__('Subscription not found.', 'zlaark-subscriptions'), 'error');
+            return;
+        }
+
+        if (!in_array($subscription->status, array('failed', 'expired'))) {
+            wc_print_notice(__('This subscription does not require manual payment.', 'zlaark-subscriptions'), 'error');
+            return;
+        }
+
+        // Check if manual payments are enabled
+        if (get_option('zlaark_subscriptions_enable_manual_payments', 'yes') !== 'yes') {
+            wc_print_notice(__('Manual payments are currently disabled.', 'zlaark-subscriptions'), 'error');
+            return;
+        }
+
+        $product = wc_get_product($subscription->product_id);
+        if (!$product) {
+            wc_print_notice(__('Product not found.', 'zlaark-subscriptions'), 'error');
+            return;
+        }
+
+        // Create payment order
+        $manager = ZlaarkSubscriptionsManager::instance();
+        $payment_url = $manager->create_manual_payment_order($subscription_id);
+
+        if ($payment_url) {
+            wp_redirect($payment_url);
+            exit;
+        } else {
+            wc_print_notice(__('Failed to create payment order. Please try again.', 'zlaark-subscriptions'), 'error');
+        }
+
+        // Show payment form as fallback
+        $this->render_manual_payment_form($subscription, $product);
+    }
+
+    /**
+     * Render manual payment form
+     *
+     * @param object $subscription
+     * @param WC_Product $product
+     */
+    private function render_manual_payment_form($subscription, $product) {
+        ?>
+        <div class="woocommerce-subscription-payment">
+            <h2><?php printf(__('Manual Payment for %s', 'zlaark-subscriptions'), esc_html($product->get_name())); ?></h2>
+            
+            <div class="subscription-payment-details">
+                <table class="woocommerce-table shop_table subscription_details">
+                    <tbody>
+                        <tr>
+                            <th><?php _e('Subscription:', 'zlaark-subscriptions'); ?></th>
+                            <td><?php echo esc_html($product->get_name()); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php _e('Amount:', 'zlaark-subscriptions'); ?></th>
+                            <td class="amount">₹<?php echo number_format($subscription->recurring_price, 2); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php _e('Status:', 'zlaark-subscriptions'); ?></th>
+                            <td><?php echo esc_html($this->get_status_label($subscription->status)); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="payment-actions">
+                <p><?php echo esc_html(get_option('zlaark_subscriptions_manual_payment_email_text', __('Your subscription payment has failed. Complete the payment below to reactivate your subscription immediately.', 'zlaark-subscriptions'))); ?></p>
+                
+                <form method="post" action="">
+                    <?php wp_nonce_field('manual_subscription_payment', 'manual_payment_nonce'); ?>
+                    <input type="hidden" name="subscription_id" value="<?php echo esc_attr($subscription->id); ?>" />
+                    <input type="hidden" name="action" value="create_manual_payment" />
+                    
+                    <p>
+                        <button type="submit" class="woocommerce-button button pay-button">
+                            <?php echo esc_html(get_option('zlaark_subscriptions_manual_payment_button_text', __('Pay Now', 'zlaark-subscriptions'))); ?>
+                        </button>
+                    </p>
+                </form>
+            </div>
+        </div>
         <?php
     }
 }

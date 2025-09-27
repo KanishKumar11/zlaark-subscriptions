@@ -368,6 +368,55 @@ class ZlaarkSubscriptionsAdmin {
                     </tr>
                 </table>
                 
+                <h2><?php _e('Manual Payment Settings', 'zlaark-subscriptions'); ?></h2>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="enable_manual_payments"><?php _e('Enable Manual Payments', 'zlaark-subscriptions'); ?></label>
+                        </th>
+                        <td>
+                            <input type="checkbox" name="enable_manual_payments" id="enable_manual_payments" value="yes" <?php checked($settings['enable_manual_payments'], 'yes'); ?> />
+                            <label for="enable_manual_payments"><?php _e('Allow customers to make manual payments for failed subscriptions.', 'zlaark-subscriptions'); ?></label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="manual_payment_button_text"><?php _e('Payment Button Text', 'zlaark-subscriptions'); ?></label>
+                        </th>
+                        <td>
+                            <input type="text" name="manual_payment_button_text" id="manual_payment_button_text" value="<?php echo esc_attr($settings['manual_payment_button_text']); ?>" class="regular-text" />
+                            <p class="description"><?php _e('Text displayed on manual payment buttons.', 'zlaark-subscriptions'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="manual_payment_email_text"><?php _e('Email Message Text', 'zlaark-subscriptions'); ?></label>
+                        </th>
+                        <td>
+                            <textarea name="manual_payment_email_text" id="manual_payment_email_text" rows="3" cols="50" class="large-text"><?php echo esc_textarea($settings['manual_payment_email_text']); ?></textarea>
+                            <p class="description"><?php _e('Message displayed in payment failure emails above the Pay Now button.', 'zlaark-subscriptions'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="admin_notifications"><?php _e('Admin Notifications', 'zlaark-subscriptions'); ?></label>
+                        </th>
+                        <td>
+                            <input type="checkbox" name="admin_notifications" id="admin_notifications" value="yes" <?php checked($settings['admin_notifications'], 'yes'); ?> />
+                            <label for="admin_notifications"><?php _e('Send email notifications to admin when manual payments are received.', 'zlaark-subscriptions'); ?></label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="failed_expiry_days"><?php _e('Failed Subscription Expiry (days)', 'zlaark-subscriptions'); ?></label>
+                        </th>
+                        <td>
+                            <input type="number" name="failed_expiry_days" id="failed_expiry_days" value="<?php echo esc_attr($settings['failed_expiry_days']); ?>" class="small-text" min="1" max="365" />
+                            <p class="description"><?php _e('Number of days after which failed subscriptions will be automatically expired. Expired subscriptions can still be manually renewed.', 'zlaark-subscriptions'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+                
                 <?php submit_button(); ?>
             </form>
         </div>
@@ -541,6 +590,11 @@ class ZlaarkSubscriptionsAdmin {
             'retry_interval' => get_option('zlaark_subscriptions_retry_interval', 2),
             'auto_cancel_after_retries' => get_option('zlaark_subscriptions_auto_cancel_after_retries', 'yes'),
             'email_notifications' => get_option('zlaark_subscriptions_email_notifications', 'yes'),
+            'enable_manual_payments' => get_option('zlaark_subscriptions_enable_manual_payments', 'yes'),
+            'manual_payment_button_text' => get_option('zlaark_subscriptions_manual_payment_button_text', __('Pay Now', 'zlaark-subscriptions')),
+            'manual_payment_email_text' => get_option('zlaark_subscriptions_manual_payment_email_text', __('Your subscription payment has failed. Click "Pay Now" to reactivate your subscription immediately.', 'zlaark-subscriptions')),
+            'admin_notifications' => get_option('zlaark_subscriptions_admin_notifications', 'yes'),
+            'failed_expiry_days' => get_option('zlaark_subscriptions_failed_expiry_days', 30),
         );
     }
     
@@ -554,6 +608,11 @@ class ZlaarkSubscriptionsAdmin {
             'retry_interval' => intval($_POST['retry_interval']),
             'auto_cancel_after_retries' => isset($_POST['auto_cancel_after_retries']) ? 'yes' : 'no',
             'email_notifications' => isset($_POST['email_notifications']) ? 'yes' : 'no',
+            'enable_manual_payments' => isset($_POST['enable_manual_payments']) ? 'yes' : 'no',
+            'manual_payment_button_text' => sanitize_text_field($_POST['manual_payment_button_text']),
+            'manual_payment_email_text' => sanitize_textarea_field($_POST['manual_payment_email_text']),
+            'admin_notifications' => isset($_POST['admin_notifications']) ? 'yes' : 'no',
+            'failed_expiry_days' => intval($_POST['failed_expiry_days']),
         );
         
         foreach ($settings as $key => $value) {

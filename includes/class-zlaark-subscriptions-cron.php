@@ -111,6 +111,9 @@ class ZlaarkSubscriptionsCron {
         // Process overdue payments (more frequent check)
         $this->process_overdue_payments();
         
+        // Process failed subscriptions for expiry
+        $this->process_failed_subscription_expiry();
+        
         $this->log('Hourly subscription check completed');
     }
     
@@ -205,7 +208,39 @@ class ZlaarkSubscriptionsCron {
             }
         }
     }
-    
+
+    /**
+     * Process failed subscriptions for expiry
+     */
+    private function process_failed_subscription_expiry() {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'zlaark_subscription_orders';
+        $expiry_days = get_option('zlaark_subscriptions_failed_expiry_days', 30); // 30 days default
+        
+        // Get failed subscriptions that have been failed for more than expiry period
+        $expired_failed = $wpdb->get_results($wpdb->prepare("
+            SELECT * FROM $table 
+            WHERE status = 'failed' 
+            AND updated_at <= %s
+        ", 
+        date('Y-m-d H:i:s', strtotime('-' . $expiry_days . ' days'))
+        ));
+        
+        if (!empty($expired_failed)) {
+            $this->log(sprintf('Found %d failed subscriptions to expire', count($expired_failed)));
+            
+            foreach ($expired_failed as $subscription) {
+                try {
+                    $this->manager->update_subscription_status($subscription->id, 'expired', 'Expired due to failed payments');
+                    $this->log(sprintf('Expired failed subscription #%d', $subscription->id));
+                } catch (Exception $e) {
+                    $this->log(sprintf('Error expiring failed subscription #%d: %s', $subscription->id, $e->getMessage()));
+                }
+            }
+        }
+    }
+
     /**
      * Send reminder emails
      */
