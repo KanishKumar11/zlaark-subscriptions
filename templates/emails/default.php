@@ -226,11 +226,26 @@ if (!defined('ABSPATH')) {
                 </div>
             <?php endif; ?>
             
+            <?php if (isset($subscription) && in_array($subscription->status, array('failed', 'expired')) && get_option('zlaark_subscriptions_enable_manual_payments', 'yes') === 'yes'): 
+                $emails_instance = ZlaarkSubscriptionsEmails::instance();
+                $manual_payment_url = $emails_instance->get_manual_payment_url($subscription->id);
+            ?>
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="<?php echo esc_url($manual_payment_url); ?>" class="button" style="background-color: #28a745; font-size: 16px; padding: 15px 30px;">
+                    <?php echo esc_html(get_option('zlaark_subscriptions_manual_payment_button_text', __('Pay Now', 'zlaark-subscriptions')) . ' - ' . __('Reactivate Subscription', 'zlaark-subscriptions')); ?>
+                </a>
+            </p>
+            <?php endif; ?>
+            
             <p>
                 <a href="<?php echo esc_url(wc_get_account_endpoint_url('subscriptions')); ?>" class="button">
                     <?php _e('Manage Your Subscriptions', 'zlaark-subscriptions'); ?>
                 </a>
             </p>
+            
+            <?php if (isset($subscription) && in_array($subscription->status, array('failed', 'expired'))): ?>
+            <p><strong><?php echo esc_html(get_option('zlaark_subscriptions_manual_payment_email_text', __('Your subscription payment has failed. Click "Pay Now" above to reactivate your subscription immediately.', 'zlaark-subscriptions'))); ?></strong></p>
+            <?php endif; ?>
             
             <p><?php _e('If you have any questions, please don\'t hesitate to contact us.', 'zlaark-subscriptions'); ?></p>
             

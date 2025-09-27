@@ -514,4 +514,42 @@ class ZlaarkRazorpayGateway extends WC_Payment_Gateway {
             $manager->update_subscription_status($subscription->id, 'cancelled', 'Cancelled via Razorpay');
         }
     }
+
+    /**
+     * Create Razorpay order for manual payments
+     *
+     * @param WC_Order $order
+     * @return array|false
+     */
+    public function create_razorpay_order($order) {
+        if (!$this->razorpay_api) {
+            return false;
+        }
+
+        try {
+            $razorpay_order_data = array(
+                'amount' => $order->get_total() * 100, // Amount in paise
+                'currency' => 'INR',
+                'receipt' => 'order_' . $order->get_id(),
+                'notes' => array(
+                    'woocommerce_order_id' => $order->get_id(),
+                    'customer_id' => $order->get_customer_id(),
+                    'manual_payment' => 'yes'
+                )
+            );
+
+            $razorpay_order = $this->razorpay_api->order->create($razorpay_order_data);
+
+            return array(
+                'order_id' => $razorpay_order['id'],
+                'amount' => $razorpay_order['amount'],
+                'currency' => $razorpay_order['currency'],
+                'receipt' => $razorpay_order['receipt']
+            );
+
+        } catch (Exception $e) {
+            error_log('Razorpay order creation failed: ' . $e->getMessage());
+            return false;
+        }
+    }
 }
